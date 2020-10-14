@@ -1,0 +1,38 @@
+---
+
+- name: create {{ machine.name }}
+  lxd_container:
+    name: {{ machine.name }}
+    state: stopped
+    source:
+      type: copy
+      source: {{ lxd_centos_source_container }}
+    config:
+{% if machine.cpus is defined %}
+      limits.cpu: {{ machine.cpus }}
+{% endif %}
+{% if machine.memory_mb is defined %}
+      limits.memory: {{ machine.memory_mb }}MB
+{% endif %}
+    devices:
+{% for nic in machine.nics %}
+      eth-{{ nic.network }}:
+        name: eth-{{ nic.network }}
+        type: nic
+        nictype: bridged
+{% if nic.network == 'management' %}
+        parent: {{ lxd_management_bridge }}
+{% elif nic.network == 'access' %}
+        parent: {{ lxd_access_bridge }}
+{% elif nic.network == 'external' %}
+        parent: {{ lxd_external_bridge }}
+{% elif nic.network == 'data' %}
+        parent: {{ lxd_data_bridge }}
+{% elif nic.network == 'storage' %}
+        parent: {{ lxd_storage_bridge }}
+{% elif nic.network == 'replication' %}
+        parent: {{ lxd_replication_bridge }}
+{% endif %}
+{% endfor %}
+    url: {{ lxd_remote_url }}
+    trust_password: {{ lxd_remote_password }}

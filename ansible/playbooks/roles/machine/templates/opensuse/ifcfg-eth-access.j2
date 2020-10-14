@@ -1,0 +1,10 @@
+# {{ ansible_managed }}
+
+DEVICE=eth-access
+BOOTPROTO=static
+IPADDR={{ access_ipaddress }}
+NETMASK={{ access_netmask }}
+STARTMODE=auto
+USERCONTROL=no
+POST_UP_SCRIPT=compat:suse:ifup-eth-access
+POST_DOWN_SCRIPT=compat:suse:ifdown-eth-access

@@ -1,0 +1,63 @@
+---
+
+- name: install software packages
+  apt:
+    name: "{{ item }}"
+    state: latest
+  with_items:
+  - trove-api
+  - trove-conductor
+  - trove-taskmanager
+  notify:
+  - sync trove database
+
+- name: update trove config
+  template:
+    src: trove.conf.j2
+    dest: /etc/trove/trove.conf
+  notify:
+  - restart trove-api service
+  - restart trove-conductor service
+  - restart trove-taskmanager service
+
+- name: update trove conductor config
+  template:
+    src: trove-conductor.conf.j2
+    dest: /etc/trove/trove-conductor.conf
+  notify:
+  - restart trove-api service
+  - restart trove-conductor service
+  - restart trove-taskmanager service
+
+- name: update trove taskmanager config
+  template:
+    src: trove-taskmanager.conf.j2
+    dest: /etc/trove/trove-taskmanager.conf
+  notify:
+  - restart trove-api service
+  - restart trove-conductor service
+  - restart trove-taskmanager service
+
+- name: update trove guestagent config
+  template:
+    src: trove-guestagent.conf.j2
+    dest: /etc/trove/trove-guestagent.conf
+
+- name: enable trove-api service
+  service:
+    name: trove-api
+    enabled: yes
+
+- name: enable trove-conductor service
+  service:
+    name: trove-conductor
+    enabled: yes
+
+- name: enable trove-taskmanager service
+  service:
+    name: trove-taskmanager
+    enabled: yes
+
+- name: run queued handlers
+  meta:
+    flush_handlers

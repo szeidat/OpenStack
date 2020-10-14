@@ -1,0 +1,14 @@
+# {{ ansible_managed }}
+
+DEVICE=eth-management
+BOOTPROTO=static
+IPADDR={{ management_ipaddress }}
+NETMASK={{ management_netmask }}
+NAME=eth-management
+TYPE=Ethernet
+NM_CONTROLLED=no
+ONBOOT=yes
+DOMAIN={{ management_domain }}
+DNS1={{ master_management_ipaddress }}
+PEERDNS=yes
+GATEWAY={{ management_gateway }}

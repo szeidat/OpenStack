@@ -1,0 +1,30 @@
+---
+
+- name: install software packages
+  yum:
+    name: openstack-manila
+    state: latest
+  notify:
+  - sync manila database
+
+- name: update manila config
+  template:
+    src: manila.conf.j2
+    dest: /etc/manila/manila.conf
+  notify:
+  - restart openstack-manila-api service
+  - restart openstack-manila-scheduler service
+
+- name: enable openstack-manila-api service
+  service:
+    name: openstack-manila-api
+    enabled: yes
+
+- name: enable openstack-manila-scheduler service
+  service:
+    name: openstack-manila-scheduler
+    enabled: yes
+
+- name: run queued handlers
+  meta:
+    flush_handlers

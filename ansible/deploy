@@ -1,0 +1,248 @@
+#!/bin/bash -ue
+
+# Set variables
+script_path=$(realpath $0)
+work_folder=$(dirname $script_path)
+
+while true; do
+
+# Read environment
+if [ -f $work_folder/variables/environment.json ]; then
+environment_backend=$(jq -r '.environment_backend' $work_folder/variables/environment.json)
+environment_manager=$(jq -r '.environment_manager' $work_folder/variables/environment.json)
+environment_distro=$(jq -r '.environment_distro' $work_folder/variables/environment.json)
+environment_description=$(jq -r '.environment_description' $work_folder/variables/environment.json)
+fi
+
+clear
+echo "Deploy services:"
+echo ""
+echo "   Environment Backend: ${environment_backend:-}"
+echo "   Provisioning Manager: ${environment_manager:-}"
+echo "   Linux Distribution: ${environment_distro:-}"
+echo "   Description: ${environment_description:-}"
+echo ""
+echo "   [1] Set environment"
+echo "   [2] Deploy all services"
+echo "   [3] Deploy some services"
+echo "   [4] Deploy storage"
+echo "   [5] Deploy load balancers"
+echo "   [6] Deploy database and messaging"
+echo "   [7] Deploy controllers"
+echo "   [8] Deploy networking gateways"
+echo "   [9] Deploy providers"
+echo "   [Q] Quit"
+echo ""
+read -p "Please select: " answer
+case $answer in
+
+####################################
+1 )
+####################################
+
+# Set variables
+selection_name=()
+selection_backend=()
+selection_manager=()
+selection_distro=()
+selection_description=()
+selection_path=()
+
+# Show available environments
+clear
+echo "Set environment:"
+echo ""
+i=0
+for file in $(ls $work_folder/variables/*/environment.json); do
+i=$((i+1))
+selection_path[$i]=$(dirname $file)
+selection_backend[$i]=$(jq -r '.environment_backend' $file)
+selection_manager[$i]=$(jq -r '.environment_manager' $file)
+selection_distro[$i]=$(jq -r '.environment_distro' $file)
+selection_description[$i]=$(jq -r '.environment_description' $file)
+echo "   [$i] ${selection_path[i]}"
+echo "       Environment Backend: ${selection_backend[i]}"
+echo "       Provisioning Manager: ${selection_manager[i]}"
+echo "       Linux Distribution: ${selection_distro[i]}"
+echo "       Description: ${selection_description[i]}"
+echo ""
+done
+read -p "Please select: " answer
+if [ -z "$answer" ]; then continue; fi
+if [ $answer -eq $answer ] 2>/dev/null; then
+if [ $answer -lt 1 -o $answer -gt $i ]; then
+echo "Selection is out of range"
+echo ""
+read -n 1 -p "Press any key to continue" dummy
+continue
+fi
+else
+continue
+fi
+
+# Build environment files inheritance chain
+environment_file=${selection_path[answer]}/environment.json
+environment_inherit=$(jq -r '.environment_inherit' $environment_file)
+environment_chain=$environment_file
+while [ "$environment_inherit" != "null" ]; do
+environment_file=$work_folder/variables/$environment_inherit/environment.json
+if [ ! -f $environment_file ]; then
+echo "Environment file '"$environment_inherit_file"' not found"
+exit
+fi
+environment_chain="$environment_file $environment_chain"
+environment_inherit=$(jq -r '.environment_inherit' $environment_file)
+done
+
+# Combine all inherited environment files
+jq -r -s add $environment_chain > $work_folder/variables/environment.json
+
+# Search inheritance chain for machines file
+environment_file=${selection_path[answer]}/environment.json
+machines_file=${selection_path[answer]}/machines.json
+while [ ! -f $machines_file ]; do
+environment_inherit=$(jq -r '.environment_inherit' $environment_file)
+if [ "$environment_inherit" != "null" ]; then
+environment_file=$work_folder/variables/$environment_inherit/environment.json
+machines_file=$work_folder/variables/$environment_inherit/machines.json
+else
+break
+fi
+done
+
+# Use first found machines file
+if [ ! -f $machines_file ]; then
+echo "Machines file '"${selection_path[answer]}/machines.json"' not found"
+exit
+else
+cp -f $machines_file $work_folder/variables/machines.json
+fi
+
+# Search inheritance chain for ansible config file
+environment_file=${selection_path[answer]}/environment.json
+ansibleconf_file=${selection_path[answer]}/ansible.cfg
+while [ ! -f $ansibleconf_file ]; do
+environment_inherit=$(jq -r '.environment_inherit' $environment_file)
+if [ "$environment_inherit" != "null" ]; then
+environment_file=$work_folder/variables/$environment_inherit/environment.json
+ansibleconf_file=$work_folder/variables/$environment_inherit/ansible.cfg
+else
+break
+fi
+done
+
+# Use first found ansible config file
+if [ -f $ansibleconf_file ]; then
+cp -f $ansibleconf_file ~/.ansible.cfg
+fi
+
+echo "Task completed"
+echo ""
+read -n 1 -p "Press any key to continue" dummy
+;;
+
+####################################
+2 )
+####################################
+
+echo "Deploy all services ..."
+ansible-playbook $work_folder/playbooks/deploy.yml -i $work_folder/inventory/hosts -e work_folder=$work_folder -e @$work_folder/variables/common.json -e @$work_folder/variables/environment.json
+
+echo "Task completed"
+echo ""
+read -n 1 -p "Press any key to continue" dummy
+;;
+
+####################################
+3 )
+####################################
+
+echo "Please enter names of services to deploy separated by commas:"
+read answer
+if [ -z "$answer" ]; then continue; fi
+ansible-playbook $work_folder/playbooks/deploy.yml -i $work_folder/inventory/hosts -e work_folder=$work_folder -e @$work_folder/variables/common.json -e @$work_folder/variables/environment.json -t "$answer"
+
+echo "Task completed"
+echo ""
+read -n 1 -p "Press any key to continue" dummy
+;;
+
+####################################
+4 )
+####################################
+
+echo "Deploy storage ..."
+ansible-playbook $work_folder/playbooks/deploy.yml -i $work_folder/inventory/hosts -e work_folder=$work_folder -e @$work_folder/variables/common.json -e @$work_folder/variables/environment.json -t storage-manager,storage-backend
+
+echo "Task completed"
+echo ""
+read -n 1 -p "Press any key to continue" dummy
+;;
+
+####################################
+5 )
+####################################
+
+echo "Deploy load balancers ..."
+ansible-playbook $work_folder/playbooks/deploy.yml -i $work_folder/inventory/hosts -e work_folder=$work_folder -e @$work_folder/variables/common.json -e @$work_folder/variables/environment.json -t load-balancer
+
+echo "Task completed"
+echo ""
+read -n 1 -p "Press any key to continue" dummy
+;;
+
+####################################
+6 )
+####################################
+
+echo "Deploy database and messaging ..."
+ansible-playbook $work_folder/playbooks/deploy.yml -i $work_folder/inventory/hosts -e work_folder=$work_folder -e @$work_folder/variables/common.json -e @$work_folder/variables/environment.json -t database-messaging
+
+echo "Task completed"
+echo ""
+read -n 1 -p "Press any key to continue" dummy
+;;
+
+####################################
+7 )
+####################################
+
+echo "Deploy controllers ..."
+ansible-playbook $work_folder/playbooks/deploy.yml -i $work_folder/inventory/hosts -e work_folder=$work_folder -e @$work_folder/variables/common.json -e @$work_folder/variables/environment.json -t cloud-controller
+
+echo "Task completed"
+echo ""
+read -n 1 -p "Press any key to continue" dummy
+;;
+
+####################################
+8 )
+####################################
+
+echo "Deploy networking gateways ..."
+ansible-playbook $work_folder/playbooks/deploy.yml -i $work_folder/inventory/hosts -e work_folder=$work_folder -e @$work_folder/variables/common.json -e @$work_folder/variables/environment.json -t networking-gateway
+
+echo "Task completed"
+echo ""
+read -n 1 -p "Press any key to continue" dummy
+;;
+
+####################################
+9 )
+####################################
+
+echo "Deploy providers ..."
+ansible-playbook $work_folder/playbooks/deploy.yml -i $work_folder/inventory/hosts -e work_folder=$work_folder -e @$work_folder/variables/common.json -e @$work_folder/variables/environment.json -t compute-provider,volume-provider,share-provider
+
+echo "Task completed"
+echo ""
+read -n 1 -p "Press any key to continue" dummy
+;;
+
+####################################
+q|Q )
+####################################
+break
+;;
+esac
+done

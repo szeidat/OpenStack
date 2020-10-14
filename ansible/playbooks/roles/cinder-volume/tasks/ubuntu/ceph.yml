@@ -1,0 +1,68 @@
+---
+
+- name: install software packages
+  apt:
+    name: "{{ item }}"
+    state: latest
+  with_items:
+  - cinder-volume
+  - cinder-backup
+  - ceph-common
+
+- name: create ceph config folder
+  file:
+    path: /etc/ceph/ceph.conf.d
+    state: directory
+
+- name: wait for ceph global config
+  local_action:
+    module: wait_for
+    path: /var/lib/ansible/ceph/ceph-global.conf
+    
+- name: copy ceph global config
+  copy:
+    src: /var/lib/ansible/ceph/ceph-global.conf
+    dest: /etc/ceph/ceph.conf.d/ceph-global.conf
+
+- name: assemble ceph config
+  assemble:
+    src: /etc/ceph/ceph.conf.d
+    dest: /etc/ceph/ceph.conf
+
+- name: wait for cinder client keyring
+  local_action:
+    module: wait_for
+    path: /var/lib/ansible/ceph/cinder.keyring
+
+- name: copy cinder client keyring
+  copy:
+    src: /var/lib/ansible/ceph/cinder.keyring
+    dest: /etc/ceph/ceph.client.cinder.keyring
+
+- name: update cinder client keyring file ownership
+  file:
+    path: /etc/ceph/ceph.client.cinder.keyring
+    owner: cinder
+    group: cinder
+
+- name: update cinder config
+  template:
+    src: cinder.conf.j2
+    dest: /etc/cinder/cinder.conf
+  notify:
+  - restart cinder-volume service
+  - restart cinder-backup service
+
+- name: enable cinder-volume service
+  service:
+    name: cinder-volume
+    enabled: yes
+
+- name: enable cinder-backup service
+  service:
+    name: cinder-backup
+    enabled: yes
+
+- name: run queued handlers
+  meta:
+    flush_handlers

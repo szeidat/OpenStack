@@ -1,0 +1,29 @@
+---
+
+- name: sync magnum database
+  command: /usr/bin/magnum-db-manage upgrade
+  become: true
+  become_method: su
+  become_user: magnum
+  become_flags: '-s /bin/bash'
+  run_once: true
+
+- name: restart magnum-api service
+  service:
+    name: magnum-api
+    state: restarted
+
+- name: restart magnum-conductor service
+  service:
+    name: magnum-conductor
+    state: restarted
+
+- name: restart openstack-magnum-api service
+  service:
+    name: openstack-magnum-api
+    state: restarted
+
+- name: restart openstack-magnum-conductor service
+  service:
+    name: openstack-magnum-conductor
+    state: restarted

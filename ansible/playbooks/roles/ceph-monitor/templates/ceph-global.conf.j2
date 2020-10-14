@@ -1,0 +1,230 @@
+# {{ ansible_managed }}
+
+##
+# Sample ceph ceph.conf file.
+##
+# This file defines cluster membership, the various locations
+# that Ceph stores data, and any other runtime options.
+
+# If a 'host' is defined for a daemon, the init.d start/stop script will
+# verify that it matches the hostname (or else ignore it).  If it is
+# not defined, it is assumed that the daemon is intended to start on
+# the current host (e.g., in a setup with a startup.conf on each
+# node).
+
+## Metavariables
+# $cluster    ; Expands to the Ceph Storage Cluster name. Useful
+#             ; when running multiple Ceph Storage Clusters
+#             ; on the same hardware.
+#             ; Example: /etc/ceph/$cluster.keyring
+#             ; (Default: ceph)
+#
+# $type       ; Expands to one of mds, osd, or mon, depending on
+#             ; the type of the instant daemon.
+#             ; Example: /var/lib/ceph/$type
+#
+# $id         ; Expands to the daemon identifier. For osd.0, this
+#             ; would be 0; for mds.a, it would be a.
+#             ; Example: /var/lib/ceph/$type/$cluster-$id
+#
+# $host       ; Expands to the host name of the instant daemon.
+#
+# $name       ; Expands to $type.$id.
+#             ; Example: /var/run/ceph/$cluster-$name.asok
+
+[global]
+### http://ceph.com/docs/giant/rados/configuration/general-config-ref/
+
+    fsid                        = {{ ceph_cluster_fsid }}
+    public network              = {{ storage_subnet }}/{{ '%s/%s' | format(storage_subnet, storage_netmask) | ipaddr('prefix') }}
+    cluster network             = {{ replication_subnet }}/{{ '%s/%s' | format(replication_subnet, replication_netmask) | ipaddr('prefix') }}
+    mon initial members         = {{ hostvars[groups['storage-manager'][0]].inventory_hostname_short }}
+    mon host                    = {{ '' }}
+{%- for host in groups['storage-manager'] %}
+{{ hostvars[host]['storage_ipaddress'] }}
+{%- if not loop.last %},{% endif %}
+{% endfor %}
+
+
+    # Each running Ceph daemon has a running process identifier (PID) file.
+    # The PID file is generated upon start-up.
+    # Type: String (optional)
+    # (Default: N/A). The default path is /var/run/$cluster/$name.pid.
+    pid file                   = /var/run/ceph/$name.pid
+
+    # If set, when the Ceph Storage Cluster starts, Ceph sets the max open fds
+    # at the OS level (i.e., the max # of file descriptors).
+    # It helps prevents Ceph OSD Daemons from running out of file descriptors.
+    # Type: 64-bit Integer (optional)
+    # (Default: 0)
+    ;max open files             = 131072
+
+
+### http://ceph.com/docs/giant/rados/operations/authentication
+### http://ceph.com/docs/giant/rados/configuration/auth-config-ref/
+
+    # If enabled, the Ceph Storage Cluster daemons (i.e., ceph-mon, ceph-osd,
+    # and ceph-mds) must authenticate with each other.
+    # Type: String (optional); Valid settings are "cephx" or "none".
+    # (Default: cephx)
+    auth cluster required      = cephx
+
+    # If enabled, the Ceph Storage Cluster daemons require Ceph Clients to
+    # authenticate with the Ceph Storage Cluster in order to access Ceph
+    # services.
+    # Type: String (optional); Valid settings are "cephx" or "none".
+    # (Default: cephx)
+    auth service required      = cephx
+
+    # If enabled, the Ceph Client requires the Ceph Storage Cluster to
+    # authenticate with the Ceph Client.
+    # Type: String (optional); Valid settings are "cephx" or "none".
+    # (Default: cephx)
+    auth client required       = cephx
+
+    # If set to true, Ceph requires signatures on all message traffic between
+    # the Ceph Client and the Ceph Storage Cluster, and between daemons
+    # comprising the Ceph Storage Cluster.
+    # Type: Boolean (optional)
+    # (Default: false)
+    ;cephx require signatures   = true
+
+    # kernel RBD client do not support authentication yet:
+    cephx cluster require signatures = true
+    cephx service require signatures = false
+
+    # The path to the keyring file.
+    # Type: String (optional)
+    # Default: /etc/ceph/$cluster.$name.keyring,/etc/ceph/$cluster.keyring,/etc/ceph/keyring,/etc/ceph/keyring.bin
+    ;keyring                    = /etc/ceph/$cluster.$name.keyring
+
+
+### http://ceph.com/docs/giant/rados/configuration/pool-pg-config-ref/
+
+
+    ## Replication level, number of data copies.
+    # Type: 32-bit Integer
+    # (Default: 3)
+    osd pool default size        = {{ ceph_osd_pool_default_size }}
+
+    ## Replication level in degraded state, less than 'osd pool default size' value.
+    # Sets the minimum number of written replicas for objects in the
+    # pool in order to acknowledge a write operation to the client. If
+    # minimum is not met, Ceph will not acknowledge the write to the
+    # client. This setting ensures a minimum number of replicas when
+    # operating in degraded mode.
+    # Type: 32-bit Integer
+    # (Default: 0), which means no particular minimum. If 0, minimum is size - (size / 2).
+    osd pool default min size    = 1
+
+    ## Ensure you have a realistic number of placement groups. We recommend
+    ## approximately 100 per OSD. E.g., total number of OSDs multiplied by 100
+    ## divided by the number of replicas (i.e., osd pool default size). So for
+    ## 10 OSDs and osd pool default size = 3, we'd recommend approximately
+    ## (100 * 10) / 3 = 333
+
+    # Description: The default number of placement groups for a pool. The
+    #              default value is the same as pg_num with mkpool.
+    # Type: 32-bit Integer
+    # (Default: 8)
+    osd pool default pg num      = {{ ceph_osd_pool_default_pg_num }}
+
+    # Description: The default number of placement groups for placement for a
+    #              pool. The default value is the same as pgp_num with mkpool.
+    #              PG and PGP should be equal (for now).
+    # Type: 32-bit Integer
+    # (Default: 8)
+    osd pool default pgp num     = {{ ceph_osd_pool_default_pgp_num }}
+
+    # The default CRUSH ruleset to use when creating a pool
+    # Type: 32-bit Integer
+    # (Default: 0)
+    ;osd pool default crush rule = 0
+
+    # The bucket type to use for chooseleaf in a CRUSH rule.
+    # Uses ordinal rank rather than name.
+    # Type: 32-bit Integer
+    # (Default: 1) Typically a host containing one or more Ceph OSD Daemons.
+    ;osd crush chooseleaf type   = 1
+
+    osd max object name len      = {{ ceph_osd_max_object_name_len }}
+    osd max object namespace len = {{ ceph_osd_max_object_namespace_len }}
+    
+### http://ceph.com/docs/giant/rados/troubleshooting/log-and-debug/
+
+    # The location of the logging file for your cluster.
+    # Type: String
+    # Required: No
+    # Default: /var/log/ceph/$cluster-$name.log
+    ;log file                   = /var/log/ceph/$cluster-$name.log
+
+    # Determines if logging messages should appear in syslog.
+    # Type: Boolean
+    # Required: No
+    # (Default: false)
+    ;log to syslog              = true
+
+
+### http://ceph.com/docs/giant/rados/configuration/ms-ref/
+
+    # Enable if you want your daemons to bind to IPv6 address instead of
+    # IPv4 ones. (Not required if you specify a daemon or cluster IP.)
+    # Type: Boolean
+    # (Default: false)
+    ;ms bind ipv6               = true
+
+
+##################
+## client settings
+[client]
+
+### http://ceph.com/docs/giant/rbd/rbd-config-ref/
+
+    # Enable caching for RADOS Block Device (RBD).
+    # Type: Boolean
+    # Required: No
+    # (Default: true)
+    rbd cache                           = true
+
+    # The RBD cache size in bytes.
+    # Type: 64-bit Integer
+    # Required: No
+    # (Default: 32 MiB)
+    ;rbd cache size                     = 33554432
+
+    # The dirty limit in bytes at which the cache triggers write-back.
+    # If 0, uses write-through caching.
+    # Type: 64-bit Integer
+    # Required: No
+    # Constraint: Must be less than rbd cache size.
+    # (Default: 24 MiB)
+    ;rbd cache max dirty                = 25165824
+
+    # The dirty target before the cache begins writing data to the data storage.
+    # Does not block writes to the cache.
+    # Type: 64-bit Integer
+    # Required: No
+    # Constraint: Must be less than rbd cache max dirty.
+    # (Default: 16 MiB)
+    ;rbd cache target dirty             = 16777216
+
+    # The number of seconds dirty data is in the cache before writeback starts.
+    # Type: Float
+    # Required: No
+    # (Default: 1.0)
+    ;rbd cache max dirty age            = 1.0
+
+    # Start out in write-through mode, and switch to write-back after the
+    # first flush request is received. Enabling this is a conservative but
+    # safe setting in case VMs running on rbd are too old to send flushes,
+    # like the virtio driver in Linux before 2.6.32.
+    # Type: Boolean
+    # Required: No
+    # (Default: true)
+    ;rbd cache writethrough until flush = true
+
+    # The Ceph admin socket allows you to query a daemon via a socket interface
+    # From a client perspective this can be a virtual machine using librbd
+    # Type: String
+    # Required: No
+    ;admin socket                       = /var/run/ceph/$cluster-$type.$id.$pid.$cctid.asok

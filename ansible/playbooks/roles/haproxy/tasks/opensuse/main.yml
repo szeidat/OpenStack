@@ -1,0 +1,41 @@
+---
+
+- name: install software packages
+  zypper:
+    name: haproxy
+    state: latest
+
+- name: update haproxy config
+  template:
+    src: haproxy.cfg.j2
+    dest: /etc/haproxy/haproxy.cfg
+    mode: '0600'
+  notify:
+  - restart haproxy service
+
+- name: copy stack management ssl certificate
+  copy:
+    src: "{{ stack_management_certificate }}"
+    dest: /etc/haproxy/internal.crt
+    mode: '0600'
+  when: stack_ssl_enabled
+  notify:
+  - restart haproxy service
+
+- name: copy stack access ssl certificate
+  copy:
+    src: "{{ stack_access_certificate }}"
+    dest: /etc/haproxy/external.crt
+    mode: '0600'
+  when: stack_ssl_enabled
+  notify:
+  - restart haproxy service
+
+- name: enable haproxy service
+  service:
+    name: haproxy
+    enabled: yes
+
+- name: run queued handlers
+  meta:
+    flush_handlers

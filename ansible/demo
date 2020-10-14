@@ -1,0 +1,1263 @@
+#!/bin/bash -ue
+
+# Set variables
+script_path=$(realpath $0)
+work_folder=$(dirname $script_path)
+cirros_qcow=/root/images/cirros-0.3.5-x86_64.img
+cirros_vmdk=/root/images/cirros-0.3.5-x86_64.vmdk
+cirros_raw=/root/images/cirros-0.3.5-x86_64.tgz
+ubuntu_qcow=/root/images/ubuntu-16.04-x86_64.img
+ubuntu_vmdk=/root/images/ubuntu-16.04-x86_64.vmdk
+manila_qcow=/root/images/ubuntu-16.04-x86_64-manila.img
+manila_vmdk=/root/images/ubuntu-16.04-x86_64-manila.vmdk
+magnum_qcow=/root/images/fedora-25-x86_64-magnum.img
+magnum_vmdk=/root/images/fedora-25-x86_64-magnum.vmdk
+
+while true; do
+
+# Read environment
+if [ -f $work_folder/variables/environment.json ]; then
+environment_backend=$(jq -r '.environment_backend' $work_folder/variables/environment.json)
+environment_manager=$(jq -r '.environment_manager' $work_folder/variables/environment.json)
+environment_distro=$(jq -r '.environment_distro' $work_folder/variables/environment.json)
+environment_description=$(jq -r '.environment_description' $work_folder/variables/environment.json)
+external_network=$(jq -r '.demo_external_network' $work_folder/variables/environment.json)
+external_gateway=$(jq -r '.demo_external_gateway' $work_folder/variables/environment.json)
+external_pool_start=$(jq -r '.demo_external_pool_start' $work_folder/variables/environment.json)
+external_pool_end=$(jq -r '.demo_external_pool_end' $work_folder/variables/environment.json)
+internal_network=$(jq -r '.demo_internal_network' $work_folder/variables/environment.json)
+internal_dns_server=$(jq -r '.dns_server' $work_folder/variables/environment.json)
+router_ipaddress=$(jq -r '.demo_router_ipaddress' $work_folder/variables/environment.json)
+floating_ipaddress=$(jq -r '.demo_floating_ipaddress' $work_folder/variables/environment.json)
+fi
+
+clear
+echo "Demo services:"
+echo ""
+echo "   Environment Backend: ${environment_backend:-}"
+echo "   Provisioning Manager: ${environment_manager:-}"
+echo "   Linux Distribution: ${environment_distro:-}"
+echo "   Description: ${environment_description:-}"
+echo ""
+echo "   [1] Set environment"
+echo "   [2] Demo images"
+echo "   [3] Demo networking"
+echo "   [4] Demo compute"
+echo "   [5] Demo volumes"
+echo "   [6] Demo shares"
+echo "   [7] Demo stacks"
+echo "   [8] Demo containers"
+echo "   [Q] Quit"
+echo ""
+read -p "Please select: " answer
+case $answer in
+
+####################################
+1 )
+####################################
+
+# Set variables
+selection_name=()
+selection_backend=()
+selection_manager=()
+selection_distro=()
+selection_description=()
+selection_path=()
+
+# Show available environments
+clear
+echo "Set environment:"
+echo ""
+i=0
+for file in $(ls $work_folder/variables/*/environment.json); do
+i=$((i+1))
+selection_path[$i]=$(dirname $file)
+selection_backend[$i]=$(jq -r '.environment_backend' $file)
+selection_manager[$i]=$(jq -r '.environment_manager' $file)
+selection_distro[$i]=$(jq -r '.environment_distro' $file)
+selection_description[$i]=$(jq -r '.environment_description' $file)
+echo "   [$i] ${selection_path[i]}"
+echo "       Environment Backend: ${selection_backend[i]}"
+echo "       Provisioning Manager: ${selection_manager[i]}"
+echo "       Linux Distribution: ${selection_distro[i]}"
+echo "       Description: ${selection_description[i]}"
+echo ""
+done
+read -p "Please select: " answer
+if [ -z "$answer" ]; then continue; fi
+if [ $answer -eq $answer ] 2>/dev/null; then
+if [ $answer -lt 1 -o $answer -gt $i ]; then
+echo "Selection is out of range"
+echo ""
+read -n 1 -p "Press any key to continue" dummy
+continue
+fi
+else
+continue
+fi
+
+# Build environment files inheritance chain
+environment_file=${selection_path[answer]}/environment.json
+environment_inherit=$(jq -r '.environment_inherit' $environment_file)
+environment_chain=$environment_file
+while [ "$environment_inherit" != "null" ]; do
+environment_file=$work_folder/variables/$environment_inherit/environment.json
+if [ ! -f $environment_file ]; then
+echo "Environment file '"$environment_inherit_file"' not found"
+exit
+fi
+environment_chain="$environment_file $environment_chain"
+environment_inherit=$(jq -r '.environment_inherit' $environment_file)
+done
+
+# Combine all inherited environment files
+jq -r -s add $environment_chain > $work_folder/variables/environment.json
+
+# Search inheritance chain for machines file
+environment_file=${selection_path[answer]}/environment.json
+machines_file=${selection_path[answer]}/machines.json
+while [ ! -f $machines_file ]; do
+environment_inherit=$(jq -r '.environment_inherit' $environment_file)
+if [ "$environment_inherit" != "null" ]; then
+environment_file=$work_folder/variables/$environment_inherit/environment.json
+machines_file=$work_folder/variables/$environment_inherit/machines.json
+else
+break
+fi
+done
+
+# Use first found machines file
+if [ ! -f $machines_file ]; then
+echo "Machines file '"${selection_path[answer]}/machines.json"' not found"
+exit
+else
+cp -f $machines_file $work_folder/variables/machines.json
+fi
+
+# Search inheritance chain for ansible config file
+environment_file=${selection_path[answer]}/environment.json
+ansibleconf_file=${selection_path[answer]}/ansible.cfg
+while [ ! -f $ansibleconf_file ]; do
+environment_inherit=$(jq -r '.environment_inherit' $environment_file)
+if [ "$environment_inherit" != "null" ]; then
+environment_file=$work_folder/variables/$environment_inherit/environment.json
+ansibleconf_file=$work_folder/variables/$environment_inherit/ansible.cfg
+else
+break
+fi
+done
+
+# Use first found ansible config file
+if [ -f $ansibleconf_file ]; then
+cp -f $ansibleconf_file ~/.ansible.cfg
+fi
+
+echo "Task completed"
+echo ""
+read -n 1 -p "Press any key to continue" dummy
+;;
+
+####################################
+2 )
+####################################
+
+while true; do
+
+clear
+echo "Demo images:"
+echo ""
+echo "   Environment Backend: ${environment_backend:-}"
+echo "   Provisioning Manager: ${environment_manager:-}"
+echo "   Linux Distribution: ${environment_distro:-}"
+echo "   Description: ${environment_description:-}"
+echo ""
+echo "   [1] Create cirros (qcow)"
+echo "   [2] Create cirros (vmdk)"
+echo "   [3] Create ubuntu (qcow)"
+echo "   [4] Create ubuntu (vmdk)"
+echo "   [5] Create manila (qcow)"
+echo "   [6] Create manila (vmdk)"
+echo "   [7] Create magnum (qcow)"
+echo "   [8] Create magnum (vmdk)"
+echo "   [9] Delete all"
+echo "   [R] Return"
+echo "   [Q] Quit"
+echo ""
+read -p "Please select: " answer
+case $answer in
+
+#:::::::::::::::::::::::::::::::::::
+1 )
+#:::::::::::::::::::::::::::::::::::
+
+echo "Creating image ($cirros_qcow) ..."
+openstack --os-cloud local image create --disk-format qcow2 --container-format bare --file $cirros_qcow --public --property hypervisor_type=qemu cirros_qcow
+
+echo "Task completed"
+echo ""
+read -n 1 -p "Press any key to continue" dummy
+;;
+
+#:::::::::::::::::::::::::::::::::::
+2 )
+#:::::::::::::::::::::::::::::::::::
+
+echo "Creating image ($cirros_vmdk) ..."
+openstack --os-cloud local image create --disk-format vmdk --container-format bare --file $cirros_vmdk --public --property hypervisor_type=vmware --property vmware_disktype=sparse --property vmware_adaptertype=ide cirros_vmdk
+
+echo "Task completed"
+echo ""
+read -n 1 -p "Press any key to continue" dummy
+;;
+
+#:::::::::::::::::::::::::::::::::::
+3 )
+#:::::::::::::::::::::::::::::::::::
+
+echo "Creating image ($ubuntu_qcow) ..."
+openstack --os-cloud local image create --disk-format qcow2 --container-format bare --file $ubuntu_qcow --public --property hypervisor_type=qemu ubuntu_qcow
+
+echo "Task completed"
+echo ""
+read -n 1 -p "Press any key to continue" dummy
+;;
+
+#:::::::::::::::::::::::::::::::::::
+4 )
+#:::::::::::::::::::::::::::::::::::
+
+echo "Creating image ($ubuntu_vmdk) ..."
+openstack --os-cloud local image create --disk-format vmdk --container-format bare --file $ubuntu_vmdk --public --property hypervisor_type=vmware --property vmware_adaptertype=paraVirtual --property vmware_disktype=sparse --property vmware_ostype=ubuntu64Guest ubuntu_vmdk
+
+echo "Task completed"
+echo ""
+read -n 1 -p "Press any key to continue" dummy
+;;
+
+#:::::::::::::::::::::::::::::::::::
+5 )
+#:::::::::::::::::::::::::::::::::::
+
+echo "Creating image ($manila_qcow) ..."
+openstack --os-cloud local image create --disk-format qcow2 --container-format bare --file $manila_qcow --public --property hypervisor_type=qemu manila_qcow
+
+echo "Task completed"
+echo ""
+read -n 1 -p "Press any key to continue" dummy
+;;
+
+#:::::::::::::::::::::::::::::::::::
+6 )
+#:::::::::::::::::::::::::::::::::::
+
+echo "Creating image ($manila_vmdk) ..."
+openstack --os-cloud local image create --disk-format vmdk --container-format bare --file $manila_vmdk --public --property hypervisor_type=vmware --property vmware_adaptertype=paraVirtual --property vmware_disktype=sparse --property vmware_ostype=ubuntu64Guest manila_vmdk
+
+echo "Task completed"
+echo ""
+read -n 1 -p "Press any key to continue" dummy
+;;
+
+#:::::::::::::::::::::::::::::::::::
+7 )
+#:::::::::::::::::::::::::::::::::::
+
+echo "Creating image ($magnum_qcow) ..."
+openstack --os-cloud local image create --disk-format qcow2 --container-format bare --file $magnum_qcow --public --property hypervisor_type=qemu --property os_distro=fedora-atomic magnum_qcow
+
+echo "Task completed"
+echo ""
+read -n 1 -p "Press any key to continue" dummy
+;;
+
+#:::::::::::::::::::::::::::::::::::
+8 )
+#:::::::::::::::::::::::::::::::::::
+
+echo "Creating image ($magnum_vmdk) ..."
+openstack --os-cloud local image create --disk-format vmdk --container-format bare --file $magnum_vmdk --public --property hypervisor_type=vmware --property os_distro=fedora-atomic --property vmware_disktype=sparse --property vmware_ostype=fedora64Guest magnum_vmdk
+
+echo "Task completed"
+echo ""
+read -n 1 -p "Press any key to continue" dummy
+;;
+
+#:::::::::::::::::::::::::::::::::::
+9 )
+#:::::::::::::::::::::::::::::::::::
+
+echo "Deleting all images ..."
+for id in $(openstack --os-cloud local image list -f value -c ID); do
+openstack --os-cloud local image delete $id
+done
+
+echo "Task completed"
+echo ""
+read -n 1 -p "Press any key to continue" dummy
+;;
+
+#:::::::::::::::::::::::::::::::::::
+r|R )
+#:::::::::::::::::::::::::::::::::::
+break
+;;
+
+#:::::::::::::::::::::::::::::::::::
+q|Q )
+#:::::::::::::::::::::::::::::::::::
+exit
+;;
+esac
+done
+;;
+
+####################################
+3 )
+####################################
+
+while true; do
+
+clear
+echo "Demo networking:"
+echo ""
+echo "   Environment Backend: ${environment_backend:-}"
+echo "   Provisioning Manager: ${environment_manager:-}"
+echo "   Linux Distribution: ${environment_distro:-}"
+echo "   Description: ${environment_description:-}"
+echo ""
+echo "   [1] Create external network"
+echo "   [2] Create internal network"
+echo "   [3] Create router"
+echo "   [4] Create floating ip"
+echo "   [5] Delete all"
+echo "   [R] Return"
+echo "   [Q] Quit"
+echo ""
+read -p "Please select: " answer
+case $answer in
+
+#:::::::::::::::::::::::::::::::::::
+1 )
+#:::::::::::::::::::::::::::::::::::
+
+echo "Creating external network ($external_network) ..."
+openstack --os-cloud local network create --external --share --provider-network-type flat --provider-physical-network external external
+openstack --os-cloud local subnet create --subnet-range $external_network --no-dhcp --gateway $external_gateway --network external --allocation-pool start=$external_pool_start,end=$external_pool_end external_subnet
+
+echo "Task completed"
+echo ""
+read -n 1 -p "Press any key to continue" dummy
+;;
+
+#:::::::::::::::::::::::::::::::::::
+2 )
+#:::::::::::::::::::::::::::::::::::
+
+echo "Creating internal network ($internal_network) ..."
+openstack --os-cloud local network create --provider-network-type vlan --provider-physical-network data --provider-segment 1000 internal
+openstack --os-cloud local subnet create --subnet-range $internal_network --dhcp --gateway auto --network internal --dns-nameserver $internal_dns_server internal_subnet
+
+echo "Task completed"
+echo ""
+read -n 1 -p "Press any key to continue" dummy
+;;
+
+#:::::::::::::::::::::::::::::::::::
+3 )
+#:::::::::::::::::::::::::::::::::::
+
+echo "Creating router (router) ..."
+openstack --os-cloud local router create --no-ha router
+openstack --os-cloud local router set --external-gateway external --fixed-ip subnet=external_subnet,ip-address=$router_ipaddress router
+openstack --os-cloud local router add subnet router internal_subnet
+
+echo "Task completed"
+echo ""
+read -n 1 -p "Press any key to continue" dummy
+;;
+
+#:::::::::::::::::::::::::::::::::::
+4 )
+#:::::::::::::::::::::::::::::::::::
+
+echo "Creating floating ip ($floating_ipaddress) ..."
+openstack --os-cloud local floating ip create --floating-ip-address $floating_ipaddress external
+
+echo "Task completed"
+echo ""
+read -n 1 -p "Press any key to continue" dummy
+;;
+
+#:::::::::::::::::::::::::::::::::::
+5 )
+#:::::::::::::::::::::::::::::::::::
+
+echo "Deleting routers ..."
+for id in $(openstack --os-cloud local router list -f value -c ID); do
+openstack --os-cloud local router unset --external-gateway $id > /dev/null 2>&1 || true
+for sid in $(openstack --os-cloud local subnet list -f value -c ID); do
+openstack --os-cloud local router remove subnet $id $sid > /dev/null 2>&1 || true
+done
+done
+for id in $(openstack --os-cloud local port list -f value -c ID); do
+openstack --os-cloud local port delete $id > /dev/null 2>&1 || true
+done
+for id in $(openstack --os-cloud local router list -f value -c ID); do
+openstack --os-cloud local router delete $id
+done
+
+echo "Deleting networks ..."
+for id in $(openstack --os-cloud local network list -f value -c ID); do
+openstack --os-cloud local network delete $id
+done
+
+echo "Task completed"
+echo ""
+read -n 1 -p "Press any key to continue" dummy
+;;
+
+#:::::::::::::::::::::::::::::::::::
+r|R )
+#:::::::::::::::::::::::::::::::::::
+break
+;;
+
+#:::::::::::::::::::::::::::::::::::
+q|Q )
+#:::::::::::::::::::::::::::::::::::
+exit
+;;
+esac
+done
+;;
+
+####################################
+4 )
+####################################
+
+while true; do
+
+clear
+echo "Demo compute:"
+echo ""
+echo "   Environment Backend: ${environment_backend:-}"
+echo "   Provisioning Manager: ${environment_manager:-}"
+echo "   Linux Distribution: ${environment_distro:-}"
+echo "   Description: ${environment_description:-}"
+echo ""
+echo "   [1] Create flavors"
+echo "   [2] Create security group"
+echo "   [3] Create keypair"
+echo "   [4] Create instance (libvirt)"
+echo "   [5] Create instance (vmware)"
+echo "   [6] Delete instances"
+echo "   [7] Delete all"
+echo "   [R] Return"
+echo "   [Q] Quit"
+echo ""
+read -p "Please select: " answer
+case $answer in
+
+#:::::::::::::::::::::::::::::::::::
+1 )
+#:::::::::::::::::::::::::::::::::::
+
+echo "Creating flavor (tiny) ..."
+openstack --os-cloud local flavor create --id 1 --ram 256 --disk 0 --ephemeral 0 --swap 0 --vcpus 1 --public tiny
+
+echo "Creating flavor (small) ..."
+openstack --os-cloud local flavor create --id 2 --ram 1024 --disk 10 --ephemeral 0 --swap 0 --vcpus 1 --public small
+
+echo "Creating flavor (medium) ..."
+openstack --os-cloud local flavor create --id 3 --ram 2048 --disk 10 --ephemeral 0 --swap 0 --vcpus 1 --public medium
+
+echo "Task completed"
+echo ""
+read -n 1 -p "Press any key to continue" dummy
+;;
+
+#:::::::::::::::::::::::::::::::::::
+2 )
+#:::::::::::::::::::::::::::::::::::
+
+echo "Creating security group (compute) ..."
+openstack --os-cloud local security group create compute
+openstack --os-cloud local security group rule create --remote-ip 0.0.0.0/0 --proto icmp compute
+openstack --os-cloud local security group rule create --remote-ip 0.0.0.0/0 --proto tcp --dst-port 22 compute
+
+echo "Task completed"
+echo ""
+read -n 1 -p "Press any key to continue" dummy
+;;
+
+#:::::::::::::::::::::::::::::::::::
+3 )
+#:::::::::::::::::::::::::::::::::::
+
+echo "Creating keypair (/root/.ssh/id_rsa.pub) ..."
+openstack --os-cloud local keypair create --public-key /root/.ssh/id_rsa.pub admin
+
+echo "Task completed"
+echo ""
+read -n 1 -p "Press any key to continue" dummy
+;;
+
+#:::::::::::::::::::::::::::::::::::
+4 )
+#:::::::::::::::::::::::::::::::::::
+
+echo "Creating instance (libvirt) ..."
+openstack --os-cloud local server create --image cirros_qcow --flavor tiny --security-group compute --key-name admin --network internal --wait server
+openstack --os-cloud local server add floating ip server $floating_ipaddress
+
+echo "Task completed"
+echo ""
+read -n 1 -p "Press any key to continue" dummy
+;;
+
+#:::::::::::::::::::::::::::::::::::
+5 )
+#:::::::::::::::::::::::::::::::::::
+
+echo "Creating instance (vmware) ..."
+openstack --os-cloud local server create --image cirros_vmdk --flavor tiny --security-group compute --key-name admin --network internal --wait server
+openstack --os-cloud local server add floating ip server $floating_ipaddress
+
+echo "Task completed"
+echo ""
+read -n 1 -p "Press any key to continue" dummy
+;;
+
+#:::::::::::::::::::::::::::::::::::
+6 )
+#:::::::::::::::::::::::::::::::::::
+
+echo "Deleting instances ..."
+for id in $(openstack --os-cloud local server list -f value -c ID); do
+openstack --os-cloud local server delete --wait $id
+done
+
+echo "Task completed"
+echo ""
+read -n 1 -p "Press any key to continue" dummy
+;;
+
+#:::::::::::::::::::::::::::::::::::
+7 )
+#:::::::::::::::::::::::::::::::::::
+
+echo "Deleting instances ..."
+for id in $(openstack --os-cloud local server list -f value -c ID); do
+openstack --os-cloud local server delete --wait $id
+done
+
+echo "Deleting flavors ..."
+for id in $(openstack --os-cloud local flavor list -f value -c ID); do
+openstack --os-cloud local flavor delete $id
+done
+
+echo "Deleting security groups ..."
+for id in $(openstack --os-cloud local security group list -f value -c ID); do
+if [ $(openstack --os-cloud local security group show $id -f value -c name) != "default" ]; then
+openstack --os-cloud local security group delete $id
+fi
+done
+
+# Delete keypairs
+echo "Deleting keypairs ..."
+for name in $(openstack --os-cloud local keypair list -f value -c Name); do
+openstack --os-cloud local keypair delete $name
+done
+
+echo "Task completed"
+echo ""
+read -n 1 -p "Press any key to continue" dummy
+;;
+
+#:::::::::::::::::::::::::::::::::::
+r|R )
+#:::::::::::::::::::::::::::::::::::
+break
+;;
+
+#:::::::::::::::::::::::::::::::::::
+q|Q )
+#:::::::::::::::::::::::::::::::::::
+exit
+;;
+esac
+done
+;;
+
+####################################
+5 )
+####################################
+
+while true; do
+
+clear
+echo "Demo volumes:"
+echo ""
+echo "   Environment Backend: ${environment_backend:-}"
+echo "   Provisioning Manager: ${environment_manager:-}"
+echo "   Linux Distribution: ${environment_distro:-}"
+echo "   Description: ${environment_description:-}"
+echo ""
+echo "   [1] Create volume type (ceph)"
+echo "   [2] Create volume type (vmdk)"
+echo "   [3] Create volume (ceph)"
+echo "   [4] Create volume (vmdk)"
+echo "   [5] Attach volume"
+echo "   [6] Delete volumes"
+echo "   [7] Delete all"
+echo "   [R] Return"
+echo "   [Q] Quit"
+echo ""
+read -p "Please select: " answer
+case $answer in
+
+#:::::::::::::::::::::::::::::::::::
+1 )
+#:::::::::::::::::::::::::::::::::::
+
+echo "Creating volume type (ceph) ..."
+openstack --os-cloud local volume type create --property volume_backend_name=ceph ceph
+
+echo "Task completed"
+echo ""
+read -n 1 -p "Press any key to continue" dummy
+;;
+
+#:::::::::::::::::::::::::::::::::::
+2 )
+#:::::::::::::::::::::::::::::::::::
+
+echo "Creating volume type (vmdk) ..."
+openstack --os-cloud local volume type create --property volume_backend_name=vmdk --property vmware:vmdk_type=thin vmdk
+
+echo "Task completed"
+echo ""
+read -n 1 -p "Press any key to continue" dummy
+;;
+
+#:::::::::::::::::::::::::::::::::::
+3 )
+#:::::::::::::::::::::::::::::::::::
+
+echo "Creating volume (ceph) ..."
+openstack --os-cloud local volume create --type ceph --size 1 volume
+
+echo "Task completed"
+echo ""
+read -n 1 -p "Press any key to continue" dummy
+;;
+
+#:::::::::::::::::::::::::::::::::::
+4 )
+#:::::::::::::::::::::::::::::::::::
+
+echo "Creating volume (vmdk) ..."
+openstack --os-cloud local volume create --type vmdk --size 1 volume
+
+echo "Task completed"
+echo ""
+read -n 1 -p "Press any key to continue" dummy
+;;
+
+#:::::::::::::::::::::::::::::::::::
+5 )
+#:::::::::::::::::::::::::::::::::::
+
+echo "Attaching volume (volume) ..."
+while [ $(openstack --os-cloud local volume show volume -f value -c status) != available ]; do sleep 1; done
+openstack --os-cloud local server add volume server volume
+
+echo "Task completed"
+echo ""
+read -n 1 -p "Press any key to continue" dummy
+;;
+
+#:::::::::::::::::::::::::::::::::::
+6 )
+#:::::::::::::::::::::::::::::::::::
+
+echo "Deleting snapshots ..."
+for id in $(openstack --os-cloud local volume snapshot list -f value -c ID); do
+openstack --os-cloud local volume snapshot delete $id
+while [ $(openstack --os-cloud local volume snapshot list -f value -c ID) ]; do sleep 1; done
+done
+
+echo "Deleting backups ..."
+for id in $(openstack --os-cloud local volume backup list -f value -c ID); do
+openstack --os-cloud local volume backup delete --force $id
+while [ $(openstack --os-cloud local volume backup list -f value -c ID) ]; do sleep 1; done
+done
+
+echo "Deleting volumes ..."
+for id in $(openstack --os-cloud local volume list -f value -c ID); do
+openstack --os-cloud local volume delete --force $id
+while [ $(openstack --os-cloud local volume list -f value -c ID) ]; do sleep 1; done
+done
+
+echo "Task completed"
+echo ""
+read -n 1 -p "Press any key to continue" dummy
+;;
+
+#:::::::::::::::::::::::::::::::::::
+7 )
+#:::::::::::::::::::::::::::::::::::
+
+echo "Deleting snapshots ..."
+for id in $(openstack --os-cloud local volume snapshot list -f value -c ID); do
+openstack --os-cloud local volume snapshot delete $id
+while [ $(openstack --os-cloud local volume snapshot list -f value -c ID) ]; do sleep 1; done
+done
+
+echo "Deleting backups ..."
+for id in $(openstack --os-cloud local volume backup list -f value -c ID); do
+openstack --os-cloud local volume backup delete --force $id
+while [ $(openstack --os-cloud local volume backup list -f value -c ID) ]; do sleep 1; done
+done
+
+echo "Deleting volumes ..."
+for id in $(openstack --os-cloud local volume list -f value -c ID); do
+openstack --os-cloud local volume delete --force $id
+while [ $(openstack --os-cloud local volume list -f value -c ID) ]; do sleep 1; done
+done
+
+echo "Deleting volume types ..."
+for id in $(openstack --os-cloud local volume type list -f value -c ID); do
+openstack --os-cloud local volume type delete $id
+done
+
+echo "Task completed"
+echo ""
+read -n 1 -p "Press any key to continue" dummy
+;;
+
+#:::::::::::::::::::::::::::::::::::
+r|R )
+#:::::::::::::::::::::::::::::::::::
+break
+;;
+
+#:::::::::::::::::::::::::::::::::::
+q|Q )
+#:::::::::::::::::::::::::::::::::::
+exit
+;;
+esac
+done
+;;
+
+####################################
+6 )
+####################################
+
+while true; do
+
+clear
+echo "Demo shares:"
+echo ""
+echo "   Environment Backend: ${environment_backend:-}"
+echo "   Provisioning Manager: ${environment_manager:-}"
+echo "   Linux Distribution: ${environment_distro:-}"
+echo "   Description: ${environment_description:-}"
+echo ""
+echo "   [1] Create share network"
+echo "   [2] Create share type (ceph)"
+echo "   [3] Create share type (vmdk)"
+echo "   [4] Create nfs and cifs shares (ceph)"
+echo "   [5] Create nfs and cifs shares (vmdk)"
+echo "   [6] Access shares"
+echo "   [7] Delete shares"
+echo "   [8] Delete all"
+echo "   [R] Return"
+echo "   [Q] Quit"
+echo ""
+read -p "Please select: " answer
+case $answer in
+
+#:::::::::::::::::::::::::::::::::::
+1 )
+#:::::::::::::::::::::::::::::::::::
+
+echo "Creating share network (internal shares) ..."
+network_id=$(openstack --os-cloud local network show internal -f value -c id)
+subnet_id=$(openstack --os-cloud local subnet show internal_subnet -f value -c id)
+source ~/.openrc
+manila share-network-create --neutron-net-id $network_id --neutron-subnet-id $subnet_id --name shares
+
+echo "Task completed"
+echo ""
+read -n 1 -p "Press any key to continue" dummy
+;;
+
+#:::::::::::::::::::::::::::::::::::
+2 )
+#:::::::::::::::::::::::::::::::::::
+
+echo "Creating share type (ceph) ..."
+source ~/.openrc
+manila type-create --extra-specs share_backend_name=ceph --is_public true ceph true
+
+echo "Task completed"
+echo ""
+read -n 1 -p "Press any key to continue" dummy
+;;
+
+#:::::::::::::::::::::::::::::::::::
+3 )
+#:::::::::::::::::::::::::::::::::::
+
+echo "Creating share type (vmdk) ..."
+source ~/.openrc
+manila type-create --extra-specs share_backend_name=vmdk --is_public true vmdk true
+
+echo "Task completed"
+echo ""
+read -n 1 -p "Press any key to continue" dummy
+;;
+
+#:::::::::::::::::::::::::::::::::::
+4 )
+#:::::::::::::::::::::::::::::::::::
+
+echo "Creating nfs share (ceph) ..."
+source ~/.openrc
+manila create --name share_nfs --share-network shares --share-type ceph nfs 1
+
+echo "Creating cifs share (ceph) ..."
+source ~/.openrc
+manila create --name share_cifs --share-network shares --share-type ceph cifs 1
+
+echo "Task completed"
+echo ""
+read -n 1 -p "Press any key to continue" dummy
+;;
+
+#:::::::::::::::::::::::::::::::::::
+5 )
+#:::::::::::::::::::::::::::::::::::
+
+echo "Creating nfs share (vmdk) ..."
+source ~/.openrc
+manila create --name share_nfs --share-network shares --share-type vmdk nfs 1
+
+echo "Creating cifs share (vmdk) ..."
+source ~/.openrc
+manila create --name share_cifs --share-network shares --share-type vmdk cifs 1
+
+echo "Task completed"
+echo ""
+read -n 1 -p "Press any key to continue" dummy
+;;
+
+#:::::::::::::::::::::::::::::::::::
+6 )
+#:::::::::::::::::::::::::::::::::::
+
+echo "Access share (share_nfs) ..."
+source ~/.openrc
+manila access-allow --access-level rw share_nfs ip $internal_network
+manila share-export-location-list share_nfs
+
+echo "Access share (share_cifs) ..."
+source ~/.openrc
+manila access-allow --access-level rw share_cifs ip $internal_network
+manila share-export-location-list share_cifs
+
+echo "Task completed"
+echo ""
+read -n 1 -p "Press any key to continue" dummy
+;;
+
+#:::::::::::::::::::::::::::::::::::
+7 )
+#:::::::::::::::::::::::::::::::::::
+
+echo "Deleting shares ..."
+source ~/.openrc
+for id in $(manila list | awk '/[0-9]/{print $2}'); do
+manila delete $id
+done
+
+echo "Task completed"
+echo ""
+read -n 1 -p "Press any key to continue" dummy
+;;
+
+#:::::::::::::::::::::::::::::::::::
+8 )
+#:::::::::::::::::::::::::::::::::::
+
+echo "Deleting shares ..."
+source ~/.openrc
+for id in $(manila list | awk '/[0-9]/{print $2}'); do
+manila delete $id
+done
+
+echo "Deleting share types ..."
+source ~/.openrc
+for id in $(manila type-list | awk '/[0-9]/{print $2}'); do
+manila type-delete $id
+done
+
+echo "Deleting share networks ..."
+source ~/.openrc
+for id in $(manila share-network-list | awk '/[0-9]/{print $2}'); do
+manila share-network-delete $id
+done
+
+echo "Task completed"
+echo ""
+read -n 1 -p "Press any key to continue" dummy
+;;
+
+#:::::::::::::::::::::::::::::::::::
+r|R )
+#:::::::::::::::::::::::::::::::::::
+break
+;;
+
+#:::::::::::::::::::::::::::::::::::
+q|Q )
+#:::::::::::::::::::::::::::::::::::
+-exit
+;;
+esac
+done
+;;
+
+####################################
+7 )
+####################################
+
+while true; do
+
+clear
+echo "Demo stacks:"
+echo ""
+echo "   Environment Backend: ${environment_backend:-}"
+echo "   Provisioning Manager: ${environment_manager:-}"
+echo "   Linux Distribution: ${environment_distro:-}"
+echo "   Description: ${environment_description:-}"
+echo ""
+echo "   [1] Create stack (libvirt)"
+echo "   [2] Create stack (vmware)"
+echo "   [3] Show stack output"
+echo "   [4] Delete stack"
+echo "   [R] Return"
+echo "   [Q] Quit"
+echo ""
+read -p "Please select: " answer
+case $answer in
+
+#:::::::::::::::::::::::::::::::::::
+1 )
+#:::::::::::::::::::::::::::::::::::
+
+echo "Creating stack (libvirt) ..."
+cat << EOF > /tmp/stack.yml
+heat_template_version: 2015-10-15
+
+description: Launch a basic instance with CirrOS image
+
+parameters:
+  flavor:
+    type: string
+    description: Instance flavor
+    default: tiny
+  image:
+    type: string
+    description: Instance mage
+    default: cirros_qcow
+  keypair:
+    type: string
+    description : Instance keypair
+    default: admin
+  private_net:
+    type: string
+    description: Private network
+    default: internal
+  public_net:
+    type: string
+    description: Public network
+    default: external
+
+resources:
+  port:
+    type: OS::Neutron::Port
+    properties:
+      network: { get_param: private_net }
+      security_groups:
+      - compute
+  floatingip:
+    type: OS::Neutron::FloatingIP
+    properties:
+      floating_network: { get_param: public_net }
+      port_id: { get_resource: port }
+  server:
+    type: OS::Nova::Server
+    properties:
+      name: server
+      image: { get_param: image }
+      flavor: { get_param: flavor }
+      networks:
+      - port: { get_resource: port }
+      key_name: { get_param: keypair }
+
+outputs:
+  public_ip:
+    description: The floating ip of the deployed server
+    value: { get_attr: [floatingip, floating_ip_address] }
+EOF
+openstack --os-cloud local stack create -t /tmp/stack.yml --wait server
+
+echo "Task completed"
+echo ""
+read -n 1 -p "Press any key to continue" dummy
+;;
+
+#:::::::::::::::::::::::::::::::::::
+2 )
+#:::::::::::::::::::::::::::::::::::
+
+echo "Creating stack (vmware) ..."
+cat << EOF > /tmp/stack.yml
+heat_template_version: 2015-10-15
+
+description: Launch a basic instance with CirrOS image
+
+parameters:
+  flavor:
+    type: string
+    description: Instance flavor
+    default: tiny
+  image:
+    type: string
+    description: Instance mage
+    default: cirros_vmdk
+  keypair:
+    type: string
+    description : Instance keypair
+    default: admin
+  private_net:
+    type: string
+    description: Private network
+    default: internal
+  public_net:
+    type: string
+    description: Public network
+    default: external
+
+resources:
+  port:
+    type: OS::Neutron::Port
+    properties:
+      network: { get_param: private_net }
+      security_groups:
+      - compute
+  floatingip:
+    type: OS::Neutron::FloatingIP
+    properties:
+      floating_network: { get_param: public_net }
+      port_id: { get_resource: port }
+  server:
+    type: OS::Nova::Server
+    properties:
+      name: server
+      image: { get_param: image }
+      flavor: { get_param: flavor }
+      networks:
+      - port: { get_resource: port }
+      key_name: { get_param: keypair }
+
+outputs:
+  public_ip:
+    description: The floating ip of the deployed server
+    value: { get_attr: [floatingip, floating_ip_address] }
+EOF
+openstack --os-cloud local stack create -t /tmp/stack.yml --wait server
+
+echo "Task completed"
+echo ""
+read -n 1 -p "Press any key to continue" dummy
+;;
+
+#:::::::::::::::::::::::::::::::::::
+3 )
+#:::::::::::::::::::::::::::::::::::
+
+echo "Displaying stack output ..."
+openstack --os-cloud local stack output show --all server
+
+echo "Task completed"
+echo ""
+read -n 1 -p "Press any key to continue" dummy
+;;
+
+#:::::::::::::::::::::::::::::::::::
+4 )
+#:::::::::::::::::::::::::::::::::::
+
+echo "Deleting stack ..."
+openstack --os-cloud local stack delete -y --wait server
+
+echo "Task completed"
+echo ""
+read -n 1 -p "Press any key to continue" dummy
+;;
+
+#:::::::::::::::::::::::::::::::::::
+r|R )
+#:::::::::::::::::::::::::::::::::::
+break
+;;
+
+#:::::::::::::::::::::::::::::::::::
+q|Q )
+#:::::::::::::::::::::::::::::::::::
+exit
+;;
+esac
+done
+;;
+
+####################################
+8 )
+####################################
+
+while true; do
+
+clear
+echo "Demo containers:"
+echo ""
+echo "   Environment Backend: ${environment_backend:-}"
+echo "   Provisioning Manager: ${environment_manager:-}"
+echo "   Linux Distribution: ${environment_distro:-}"
+echo "   Description: ${environment_description:-}"
+echo ""
+echo "   [1] Create cluster template (swarm-libvirt)"
+echo "   [2] Create cluster template (swarm-vmware)"
+echo "   [3] Create cluster (swarm)"
+echo "   [4] Gather cluster config"
+echo "   [5] Delete clusters"
+echo "   [6] Delete all"
+echo "   [R] Return"
+echo "   [Q] Quit"
+echo ""
+read -p "Please select: " answer
+case $answer in
+
+#:::::::::::::::::::::::::::::::::::
+1 )
+#:::::::::::::::::::::::::::::::::::
+
+echo "Creating cluster template (swarm-libvirt) ..."
+source ~/.openrc
+magnum cluster-template-create --name swarm --image-id magnum_qcow --keypair-id admin --external-network-id external --dns-nameserver $internal_dns_server --master-flavor-id medium --flavor-id small --tls-disabled --coe swarm
+
+echo "Task completed"
+echo ""
+read -n 1 -p "Press any key to continue" dummy
+;;
+
+#:::::::::::::::::::::::::::::::::::
+2 )
+#:::::::::::::::::::::::::::::::::::
+
+echo "Creating cluster template (swarm-vmware) ..."
+source ~/.openrc
+magnum cluster-template-create --name swarm --image-id magnum_vmdk --keypair-id admin --external-network-id external --dns-nameserver $internal_dns_server --master-flavor-id medium --flavor-id small --tls-disabled --coe swarm
+
+echo "Task completed"
+echo ""
+read -n 1 -p "Press any key to continue" dummy
+;;
+
+#:::::::::::::::::::::::::::::::::::
+3 )
+#:::::::::::::::::::::::::::::::::::
+
+echo "Creating cluster (cluster) ..."
+source ~/.openrc
+magnum cluster-create --name cluster --cluster-template swarm --master-count 1 --node-count 1
+
+echo "Task completed"
+echo ""
+read -n 1 -p "Press any key to continue" dummy
+;;
+
+#:::::::::::::::::::::::::::::::::::
+4 )
+#:::::::::::::::::::::::::::::::::::
+
+echo "Gather cluster config ..."
+source ~/.openrc
+magnum cluster-config --dir /root cluster
+
+echo "Task completed"
+echo ""
+read -n 1 -p "Press any key to continue" dummy
+;;
+
+#:::::::::::::::::::::::::::::::::::
+5 )
+#:::::::::::::::::::::::::::::::::::
+
+echo "Deleting clusters ..."
+source ~/.openrc
+for id in $(magnum cluster-list | awk '/[0-9]/{print $2}'); do
+magnum cluster-delete $id
+done
+
+echo "Task completed"
+echo ""
+read -n 1 -p "Press any key to continue" dummy
+;;
+
+#:::::::::::::::::::::::::::::::::::
+6 )
+#:::::::::::::::::::::::::::::::::::
+
+echo "Deleting clusters ..."
+source ~/.openrc
+for id in $(magnum cluster-list | awk '/[0-9]/{print $2}'); do
+magnum cluster-delete $id
+done
+
+echo "Deleting cluster templates ..."
+source ~/.openrc
+for id in $(magnum cluster-template-list | awk '/[0-9]/{print $2}'); do
+magnum cluster-template-delete $id
+done
+
+echo "Task completed"
+echo ""
+read -n 1 -p "Press any key to continue" dummy
+;;
+
+#:::::::::::::::::::::::::::::::::::
+r|R )
+#:::::::::::::::::::::::::::::::::::
+break
+;;
+
+#:::::::::::::::::::::::::::::::::::
+q|Q )
+#:::::::::::::::::::::::::::::::::::
+exit
+;;
+esac
+done
+;;
+
+####################################
+q|Q )
+####################################
+break
+;;
+esac
+done

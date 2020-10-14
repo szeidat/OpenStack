@@ -1,0 +1,88 @@
+#!/bin/bash
+
+# List service
+function service_list
+{
+  output=$(openstack --os-cloud "$cloud" service list --format value 2>&1)
+  if [ $? -ne 0 ]; then
+    jq -n -c -M --arg msg "error getting service list: $output" '{failed: true, msg: $msg}'
+    exit 1
+  fi
+}
+
+# Create service
+function service_create
+{
+  output=$(openstack --os-cloud "$cloud" service create --format value --name "$name" --description "$description" "$type" 2>&1)
+  if [ $? -ne 0 ]; then
+    jq -n -c -M --arg msg "error creating service: $output" '{failed: true, msg: $msg}'
+    exit 1
+  fi
+}
+
+# Delete service
+function service_delete
+{
+  output=$(openstack --os-cloud "$cloud" service delete "$name" 2>&1)
+  if [ $? -ne 0 ]; then
+    jq -n -c -M --arg msg "error deleting service: $output" '{failed: true, msg: $msg}'
+    exit 1
+  fi
+}
+
+# Read variables
+state=present
+source $1
+
+# Validate variables
+if [ -z "$cloud" ]; then
+  jq -n -c -M '{failed: true, msg: "missing required arguments: cloud"}'
+  exit 1
+fi
+
+if [ -z "$name" ]; then
+  jq -n -c -M' {failed: true, msg: "missing required arguments: name"}'
+  exit 1
+fi
+
+if [ -z "$description" ]; then
+  jq -n -c -M '{failed: true, msg: "missing required arguments: description"}'
+  exit 1
+fi
+
+if [ -z "$type" ]; then
+  jq -n -c -M' {failed: true, msg: "missing required arguments: type"}'
+  exit 1
+fi
+
+# Set requested state
+case $state in
+  present )
+  service_list
+  if [ -z "$(echo "$output" | grep -F "$name")" ]; then
+    service_create
+    jq -n -c -M --arg msg "$output" '{changed: true, msg: $msg}'
+    exit 0
+  else
+    jq -n -c -M --arg msg "$output" '{changed: false, msg: $msg}'
+    exit 0
+  fi
+  ;;
+
+  absent )
+  service_list
+  if [ -z "$(echo "$output" | grep -F "$name")" ]; then
+    jq -n -c -M --arg msg "$output" '{changed: false, msg: $msg}'
+    exit 0
+  else
+    service_delete
+    jq -n -c -M --arg msg "$output" '{changed: true, msg: $msg}'
+    exit 0
+  fi
+  ;;
+
+  * )
+  jq -n -c -M --arg msg "invalid state: $state" '{failed: true, msg: $msg}'
+  exit 1
+  ;;
+esac

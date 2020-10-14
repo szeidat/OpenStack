@@ -1,0 +1,3 @@
+---
+
+- include: "{{ environment_distro }}/{{ provision_mode }}-{{ environment_backend }}-{{ environment_manager }}.yml"

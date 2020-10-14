@@ -1,0 +1,54 @@
+---
+
+- name: systemd daemon reload
+  shell: systemctl daemon-reload
+
+- name: restart neutron-linuxbridge-agent service
+  service:
+    name: neutron-linuxbridge-agent
+    state: restarted
+
+- name: restart neutron-openvswitch-agent service
+  service:
+    name: neutron-openvswitch-agent
+    state: restarted
+
+- name: restart neutron-metadata-agent service
+  service:
+    name: neutron-metadata-agent
+    state: restarted
+
+- name: restart neutron-dhcp-agent service
+  service:
+    name: neutron-dhcp-agent
+    state: restarted
+
+- name: restart neutron-l3-agent service
+  service:
+    name: neutron-l3-agent
+    state: restarted
+
+- name: restart openstack-neutron-linuxbridge-agent service
+  service:
+    name: openstack-neutron-linuxbridge-agent
+    state: restarted
+
+- name: restart openstack-neutron-openvswitch-agent service
+  service:
+    name: openstack-neutron-openvswitch-agent
+    state: restarted
+
+- name: restart openstack-neutron-metadata-agent service
+  service:
+    name: openstack-neutron-metadata-agent
+    state: restarted
+
+- name: restart openstack-neutron-dhcp-agent service
+  service:
+    name: openstack-neutron-dhcp-agent
+    state: restarted
+
+- name: restart openstack-neutron-l3-agent service
+  service:
+    name: openstack-neutron-l3-agent
+    state: restarted

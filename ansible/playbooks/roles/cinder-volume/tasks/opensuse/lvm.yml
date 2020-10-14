@@ -1,0 +1,40 @@
+---
+
+- name: install software packages
+  zypper:
+    name: "{{ item }}"
+    state: latest
+  with_items:
+  - openstack-cinder-volume
+  - openstack-cinder-backup
+  - python-swiftclient
+  - targetcli-fb
+
+- name: create cinder volume group
+  lvg:
+    vg: cinder-volumes
+    pvs: "{{ cinder_volume_lvm_device }}"
+  notify:
+  - restart openstack-cinder-volume service
+
+- name: update cinder config
+  template:
+    src: cinder.conf.j2
+    dest: /etc/cinder/cinder.conf
+  notify:
+  - restart openstack-cinder-volume service
+  - restart openstack-cinder-backup service
+
+- name: enable openstack-cinder-volume service
+  service:
+    name: openstack-cinder-volume
+    enabled: yes
+
+- name: enable openstack-cinder-backup service
+  service:
+    name: openstack-cinder-backup
+    enabled: yes
+
+- name: run queued handlers
+  meta:
+    flush_handlers

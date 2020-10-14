@@ -1,0 +1,107 @@
+#!/bin/bash
+
+# List remote
+function remote_list
+{
+  output=$(lxc remote list 2>&1)
+  if [ $? -ne 0 ]; then
+    jq -n -c -M --arg msg "error getting remote list: $output" '{failed: true, msg: $msg}'
+    exit 1
+  fi
+}
+
+# Add remote
+function remote_add
+{
+  output=$(lxc remote add "$name" "$url" --accept-certificate --password "$password" 2>&1)
+  if [ $? -ne 0 ]; then
+    jq -n -c -M --arg msg "error adding remote: $output" '{failed: true, msg: $msg}'
+    exit 1
+  fi
+
+  if [ "$default" == "true" ]; then
+    output=$(lxc remote set-default "$name" 2>&1)
+    if [ $? -ne 0 ]; then
+      jq -n -c -M --arg msg "error setting default remote: $output" '{failed: true, msg: $msg}'
+      exit 1
+    fi
+  fi
+}
+
+# Remove remote
+function remote_remove
+{
+  output=$(lxc remote get-default 2>&1)
+  if [ $? -ne 0 ]; then
+    jq -n -c -M --arg msg "error getting default remote: $output" '{failed: true, msg: $msg}'
+    exit 1
+  fi
+
+  if [ "$output" == "$name" ]; then
+    output=$(lxc remote set-default local 2>&1)
+    if [ $? -ne 0 ]; then
+      jq -n -c -M --arg msg "error setting default remote: $output" '{failed: true, msg: $msg}'
+      exit 1
+    fi
+  fi
+
+  output=$(lxc remote remove "$name" 2>&1)
+  if [ $? -ne 0 ]; then
+    jq -n -c -M --arg msg "error removing remote: $output" '{failed: true, msg: $msg}'
+    exit 1
+  fi
+}
+
+
+# Read variables
+state=present
+default=true
+source $1
+
+# Validate variables
+if [ -z "$name" ]; then
+  jq -n -c -M '{failed: true, msg: "missing required arguments: name"}'
+  exit 1
+fi
+
+if [ "$state" == "present" -a -z "$url" ]; then
+  jq -n -c -M '{failed: true, msg: "missing required arguments: url"}'
+  exit 1
+fi
+
+if [ "$state" == "present" -a -z "$password" ]; then
+  jq -n -c -M '{failed: true, msg: "missing required arguments: password"}'
+  exit 1
+fi
+
+# Set requested state
+case $state in
+  present )
+  remote_list
+  if [ -z "$(echo "$output" | grep -F "$name")" ]; then
+    remote_add
+    jq -n -c -M --arg msg "$output" '{changed: true, msg: $msg}'
+    exit 0
+  else
+    jq -n -c -M --arg msg "$output" '{changed: false, msg: $msg}'
+    exit 0
+  fi
+  ;;
+
+  absent )
+  remote_list
+  if [ -z "$(echo "$output" | grep -F "$name")" ]; then
+    jq -n -c -M --arg msg "$output" '{changed: false, msg: $msg}'
+    exit 0
+  else
+    remote_remove
+    jq -n -c -M --arg msg "$output" '{changed: true, msg: $msg}'
+    exit 0
+  fi
+  ;;
+
+  * )
+  jq -n -c -M --arg msg "invalid state: $state" '{failed: true, msg: $msg}'
+  exit 1
+  ;;
+esac

@@ -1,0 +1,16 @@
+[Unit]
+Description=OpenStack Neutron DVS Agent
+After=syslog.target network.target
+PartOf=network.service
+
+[Service]
+Type=simple
+User=neutron
+PermissionsStartOnly=true
+ExecStart=/usr/bin/neutron-dvs-agent --config-file /usr/share/neutron/neutron-dist.conf --config-file /etc/neutron/neutron.conf  --config-file /etc/neutron/ml2_conf_vmware_dvs.ini --config-dir /etc/neutron/conf.d/common --log-file /var/log/neutron/dvs-agent.log
+PrivateTmp=true
+KillMode=process
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

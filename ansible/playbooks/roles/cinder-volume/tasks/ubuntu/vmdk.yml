@@ -1,0 +1,31 @@
+---
+
+- name: install software packages
+  apt:
+    name: "{{ item }}"
+    state: latest
+  with_items:
+  - cinder-volume
+  - cinder-backup
+
+- name: update cinder config
+  template:
+    src: cinder.conf.j2
+    dest: /etc/cinder/cinder.conf
+  notify:
+  - restart cinder-volume service
+  - restart cinder-backup service
+
+- name: enable cinder-volume service
+  service:
+    name: cinder-volume
+    enabled: yes
+
+- name: enable cinder-backup service
+  service:
+    name: cinder-backup
+    enabled: yes
+
+- name: run queued handlers
+  meta:
+    flush_handlers

@@ -1,0 +1,214 @@
+---
+
+- name: install software packages
+  zypper:
+    name: "{{ item }}"
+    state: latest
+  with_items:
+  - mariadb
+  - python-MySQL-python
+
+- name: update mariadb config
+  template:
+    src: openstack.cnf.j2
+    dest: /etc/my.cnf.d/openstack.cnf
+  notify:
+  - restart mysql service
+
+- name: enable mysql service
+  service:
+    name: mysql
+    enabled: yes
+
+- name: run queued handlers
+  meta:
+    flush_handlers
+
+- name: remove test database
+  mysql_db:
+    name: test
+    state: absent
+
+- name: remove anonymous user
+  mysql_user:
+    name: ''
+    host_all: yes
+    state: absent
+
+- name: restrict root access
+  mysql_user:
+    name: root
+    host: '%'
+    state: absent
+
+- name: set root password
+  mysql_user:
+    name: root
+    host_all: yes
+    password: "{{ mariadb_root_password }}"
+
+- name: update root config
+  template:
+    src: root.my.cnf.j2
+    dest: /root/.my.cnf
+    mode: '0600'
+
+- name: create keystone database
+  mysql_db:
+    name: "{{ keystone_database_name }}"
+    state: present
+    encoding: utf8
+  run_once: true
+
+- name: create keystone user
+  mysql_user:
+    name: "{{ keystone_database_user }}"
+    password: "{{ keystone_database_password }}"
+    host: '%'
+    priv: "{{ keystone_database_name }}.*:ALL"
+    state: present
+  run_once: true
+
+- name: create glance database
+  mysql_db:
+    name: "{{ glance_database_name }}"
+    state: present
+    encoding: utf8
+  run_once: true
+
+- name: create glance user
+  mysql_user:
+    name: "{{ glance_database_user }}"
+    password: "{{ glance_database_password }}"
+    host: '%'
+    priv: "{{ glance_database_name }}.*:ALL"
+    state: present
+  run_once: true
+
+- name: create nova_api database
+  mysql_db:
+    name: "{{ nova_api_database_name }}"
+    state: present
+    encoding: utf8
+  run_once: true
+
+- name: create nova_api user
+  mysql_user:
+    name: "{{ nova_api_database_user }}"
+    password: "{{ nova_api_database_password }}"
+    host: '%'
+    priv: "{{ nova_api_database_name }}.*:ALL"
+    state: present
+  run_once: true
+
+- name: create nova database
+  mysql_db:
+    name: "{{ nova_database_name }}"
+    state: present
+    encoding: utf8
+  run_once: true
+
+- name: create nova user
+  mysql_user:
+    name: "{{ nova_database_user }}"
+    password: "{{ nova_database_password }}"
+    host: '%'
+    priv: "{{ nova_database_name }}.*:ALL"
+    state: present
+  run_once: true
+
+- name: create neutron database
+  mysql_db:
+    name: "{{ neutron_database_name }}"
+    state: present
+    encoding: utf8
+  run_once: true
+
+- name: create neutron user
+  mysql_user:
+    name: "{{ neutron_database_user }}"
+    password: "{{ neutron_database_password }}"
+    host: '%'
+    priv: "{{ neutron_database_name }}.*:ALL"
+    state: present
+  run_once: true
+
+- name: create cinder database
+  mysql_db:
+    name: "{{ cinder_database_name }}"
+    state: present
+    encoding: utf8
+  run_once: true
+
+- name: create cinder user
+  mysql_user:
+    name: "{{ cinder_database_user }}"
+    password: "{{ cinder_database_password }}"
+    host: '%'
+    priv: "{{ cinder_database_name }}.*:ALL"
+    state: present
+  run_once: true
+
+- name: create manila database
+  mysql_db:
+    name: "{{ manila_database_name }}"
+    state: present
+    encoding: utf8
+  run_once: true
+
+- name: create manila user
+  mysql_user:
+    name: "{{ manila_database_user }}"
+    password: "{{ manila_database_password }}"
+    host: '%'
+    priv: "{{ manila_database_name }}.*:ALL"
+    state: present
+  run_once: true
+
+- name: create heat database
+  mysql_db:
+    name: "{{ heat_database_name }}"
+    state: present
+    encoding: utf8
+  run_once: true
+
+- name: create heat user
+  mysql_user:
+    name: "{{ heat_database_user }}"
+    password: "{{ heat_database_password }}"
+    host: '%'
+    priv: "{{ heat_database_name }}.*:ALL"
+    state: present
+  run_once: true
+
+- name: create magnum database
+  mysql_db:
+    name: "{{ magnum_database_name }}"
+    state: present
+    encoding: utf8
+  run_once: true
+
+- name: create magnum user
+  mysql_user:
+    name: "{{ magnum_database_user }}"
+    password: "{{ magnum_database_password }}"
+    host: '%'
+    priv: "{{ magnum_database_name }}.*:ALL"
+    state: present
+  run_once: true
+
+- name: create trove database
+  mysql_db:
+    name: "{{ trove_database_name }}"
+    state: present
+    encoding: utf8
+  run_once: true
+
+- name: create trove user
+  mysql_user:
+    name: "{{ trove_database_user }}"
+    password: "{{ trove_database_password }}"
+    host: '%'
+    priv: "{{ trove_database_name }}.*:ALL"
+    state: present
+  run_once: true

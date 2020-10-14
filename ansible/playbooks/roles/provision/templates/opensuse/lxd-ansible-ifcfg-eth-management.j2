@@ -1,0 +1,11 @@
+DEVICE=eth-management
+NAME=eth-management
+BOOTPROTO=static
+STARTMODE=auto
+USERCONTROL=no
+{% for nic in machine.nics %}
+{% if nic.network == 'management' %}
+IPADDR={{ nic.ipaddress }}
+{% endif %}
+{% endfor %}
+NETMASK={{ management_netmask }}

@@ -1,0 +1,53 @@
+# {{ ansible_managed }}
+
+##################
+## radosgw client settings
+[client.rgw.{{ inventory_hostname_short }}]
+
+### http://ceph.com/docs/giant/radosgw/config-ref/
+
+    # Sets the location of the data files for Ceph Object Gateway.
+    # You must create the directory when deploying Ceph.
+    # We do not recommend changing the default.
+    # Type: String
+    # Default: /var/lib/ceph/radosgw/$cluster-$id
+    ;rgw data                     = /var/lib/ceph/radosgw/$name
+
+    # Client's hostname
+    ;host                         =  ceph-radosgw
+
+    # where the radosgw keeps it's secret encryption keys
+    ;keyring                      = /etc/ceph/ceph.client.radosgw.keyring
+
+    # FastCgiExternalServer uses this socket.
+    # If you do not specify a socket path, Ceph Object Gateway will not run as an external server.
+    # The path you specify here must be the same as the path specified in the rgw.conf file.
+    # Type: String
+    # Default: None
+    ;rgw socket path              = /var/run/ceph/ceph.radosgw.gateway.fastcgi.sock
+
+    # The location of the logging file for your radosgw.
+    # Type: String
+    # Required: No
+    # Default: /var/log/ceph/$cluster-$name.log
+    ;log file                     = /var/log/ceph/client.radosgw.gateway.log
+
+    # Enable 100-continue if it is operational.
+    # Type: Boolean
+    # Default:  true
+    ;rgw print continue           = false
+
+    # The DNS name of the served domain.
+    # Type: String
+    # Default:  None
+    ;rgw dns name                 = radosgw.ceph.internal
+
+    rgw frontends                 = "civetweb port={{ management_ipaddress }}:8080"
+    rgw keystone api version      = 3
+    rgw keystone url              = {% if stack_ssl_enabled %}https{% else %}http{% endif %}://{{ stack_management_ipaddress }}:35357
+    rgw keystone admin user       = {{ swift_service_user }}
+    rgw keystone admin password   = {{ swift_service_password }}
+    rgw keystone admin project    = service
+    rgw keystone admin domain     = Default
+    rgw keystone accepted roles   = admin, user
+

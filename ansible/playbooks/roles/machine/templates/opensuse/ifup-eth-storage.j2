@@ -1,0 +1,4 @@
+#!/bin/bash
+
+ip route add default via {{ storage_gateway }} table 20
+ip rule add from {{ storage_subnet }}/{{ storage_netmask }} table 20

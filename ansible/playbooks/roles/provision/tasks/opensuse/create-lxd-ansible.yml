@@ -1,0 +1,109 @@
+---
+
+- name: gather machine facts
+  shell: "lxc config show {{ machine.name }}"
+  register: machine_facts
+  changed_when: false
+  ignore_errors: true
+  when:
+  - machine.provision
+
+- name: create temp folder
+  tempfile:
+    prefix: "lxd.create.{{ machine.name }}."
+    state: directory
+  register: temp_folder
+  when:
+  - machine.provision
+  - machine_facts | failed
+
+- name: create machine provisioning tasks
+  template:
+    src: opensuse/lxd-ansible-create.yml.j2
+    dest: "{{ temp_folder.path }}/create.yml"
+  when:
+  - machine.provision
+  - machine_facts | failed
+
+- name: run machine provisioning tasks
+  include: "{{ temp_folder.path }}/create.yml"
+  when:
+  - machine.provision
+  - machine_facts | failed
+
+- name: create network config file
+  template:
+    src: opensuse/lxd-ansible-ifcfg-eth-management.j2
+    dest: "{{ temp_folder.path }}/ifcfg-eth-management"
+  when:
+  - machine.provision
+  - machine_facts | failed
+
+- name: update machine network config
+  shell: "lxc file push {{ temp_folder.path }}/ifcfg-eth-management {{ machine.name }}/etc/sysconfig/network/"
+  changed_when: false
+  when:
+  - machine.provision
+  - machine_facts | failed
+
+- name: create routes config file
+  template:
+    src: opensuse/lxd-ansible-routes.j2
+    dest: "{{ temp_folder.path }}/routes"
+  when:
+  - machine.provision
+  - machine_facts | failed
+
+- name: update machine routes config
+  shell: "lxc file push {{ temp_folder.path }}/routes {{ machine.name }}/etc/sysconfig/network/"
+  changed_when: false
+  when:
+  - machine.provision
+  - machine_facts | failed
+
+- name: "start {{ machine.name }}"
+  lxd_container:
+    name: "{{ machine.name }}"
+    state: started
+    url: "{{ lxd_remote_url }}"
+    trust_password: "{{ lxd_remote_password }}"
+  when:
+  - machine.provision
+  - machine_facts | failed
+
+- name: create machine dns record
+  nsupdate:
+    server: "{{ master_management_ipaddress }}"
+    zone: "{{ management_domain }}"
+    record: "{{ machine.name }}"
+    type: A
+    value: "{{ machine | json_query(query) | join }}"
+  vars:
+    query: "nics[?network=='management'].ipaddress"
+
+- name: create machine dns ptr record
+  nsupdate:
+    server: "{{ master_management_ipaddress }}"
+    zone: "{{ management_arpa }}"
+    record: "{{ machine | json_query(query) | join | ipaddr('revdns') }}"
+    type: PTR
+    value: "{{ machine.name }}.{{ management_domain }}."
+  vars:
+    query: "nics[?network=='management'].ipaddress"
+
+- name: gather machine facts
+  shell: "lxc config show {{ machine.name }}"
+  register: machine_facts
+  changed_when: false
+  when:
+  - machine.provision
+
+- name: create host_vars folder
+  file:
+    path: "{{ work_folder }}/inventory/host_vars"
+    state: directory
+
+- name: update machine host_vars file
+  template:
+    src: lxd-ansible-hostvars.j2
+    dest: "{{ work_folder }}/inventory/host_vars/{{ machine.name }}.{{ management_domain }}"

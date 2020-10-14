@@ -1,0 +1,56 @@
+---
+
+- name: install software packages
+  zypper:
+    name: "{{ item }}"
+    state: latest
+  with_items:
+  - openstack-nova-api
+  - openstack-nova-conductor
+  - openstack-nova-console
+  - openstack-nova-consoleauth
+  - openstack-nova-novncproxy
+  - openstack-nova-scheduler
+  notify:
+  - sync nova api database
+  - sync nova database
+
+- name: update nova config
+  template:
+    src: nova.conf.j2
+    dest: /etc/nova/nova.conf
+  notify:
+  - restart openstack-nova-api service
+  - restart openstack-nova-consoleauth service
+  - restart openstack-nova-scheduler service
+  - restart openstack-nova-conductor service
+  - restart openstack-nova-novncproxy service
+
+- name: enable openstack-nova-api service
+  service:
+    name: openstack-nova-api
+    enabled: yes
+
+- name: enable openstack-nova-consoleauth service
+  service:
+    name: openstack-nova-consoleauth
+    enabled: yes
+
+- name: enable openstack-nova-scheduler service
+  service:
+    name: openstack-nova-scheduler
+    enabled: yes
+
+- name: enable openstack-nova-conductor service
+  service:
+    name: openstack-nova-conductor
+    enabled: yes
+
+- name: enable openstack-nova-novncproxy service
+  service:
+    name: openstack-nova-novncproxy
+    enabled: yes
+
+- name: run queued handlers
+  meta:
+    flush_handlers

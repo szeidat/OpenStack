@@ -1,0 +1,104 @@
+---
+
+- name: install software packages
+  zypper:
+    name: ceph-radosgw
+    state: latest
+
+- name: create ceph-rgw service override folder
+  file:
+    path: /etc/systemd/system/ceph-radosgw@.service.d
+    state: directory
+  when: lxd_ceph_service_override is defined and lxd_ceph_service_override
+  notify:
+  - systemd daemon reload
+
+- name: create ceph-rgw service override
+  copy:
+    src: ceph.override.conf
+    dest: /etc/systemd/system/ceph-radosgw@.service.d/override.conf
+  when: lxd_ceph_service_override is defined and lxd_ceph_service_override
+  notify:
+  - systemd daemon reload
+
+- name: create ceph config folder
+  file:
+    path: /etc/ceph/ceph.conf.d
+    state: directory
+
+- name: wait for ceph global config
+  local_action:
+    module: wait_for
+    path: /var/lib/ansible/ceph/ceph-global.conf
+    
+- name: copy ceph global config
+  copy:
+    src: /var/lib/ansible/ceph/ceph-global.conf
+    dest: /etc/ceph/ceph.conf.d/ceph-global.conf
+
+- name: update ceph rgw config
+  template:
+    src: ceph-rgw.conf.j2
+    dest: /etc/ceph/ceph.conf.d/ceph-rgw.conf
+
+- name: assemble ceph config
+  assemble:
+    src: /etc/ceph/ceph.conf.d
+    dest: /etc/ceph/ceph.conf
+  notify:
+  - restart ceph-rgw service
+
+- name: create rgw bootstrap folder
+  file:
+    path: /var/lib/ceph/bootstrap-rgw
+    state: directory
+
+- name: wait for rgw bootstrap keyring
+  local_action:
+    module: wait_for
+    path: /var/lib/ansible/ceph/rgw.keyring
+
+- name: copy rgw bootstrap keyring
+  copy:
+    src: /var/lib/ansible/ceph/rgw.keyring
+    dest: /var/lib/ceph/bootstrap-rgw/ceph.keyring
+
+- name: create rgw client folder
+  file:
+    path: "/var/lib/ceph/radosgw/ceph-rgw.{{ inventory_hostname_short }}"
+    state: directory
+
+- name: create rgw client keyring
+  command: >
+    /usr/bin/ceph
+    --cluster ceph
+    --name client.bootstrap-rgw
+    --keyring /var/lib/ceph/bootstrap-rgw/ceph.keyring
+    auth get-or-create "client.rgw.{{ inventory_hostname_short }}"
+    osd 'allow rwx'
+    mon 'allow rw'
+    --out-file "/var/lib/ceph/radosgw/ceph-rgw.{{ inventory_hostname_short }}/keyring"
+  args:
+    creates: "/var/lib/ceph/radosgw/ceph-rgw.{{ inventory_hostname_short }}/keyring"
+
+- name: update ceph directory ownership
+  file:
+    path: /var/lib/ceph
+    state: directory
+    recurse: yes
+    owner: ceph
+    group: ceph
+
+- name: enable ceph-rgw service
+  service:
+    name: "ceph-radosgw@rgw.{{ inventory_hostname_short }}"
+    enabled: yes
+
+- name: start ceph-rgw service
+  service:
+    name: "ceph-radosgw@rgw.{{ inventory_hostname_short }}"
+    state: started
+
+- name: run queued handlers
+  meta:
+    flush_handlers

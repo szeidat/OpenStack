@@ -1,0 +1,19 @@
+---
+
+- name: update ca certificates
+  shell: update-ca-certificates
+
+- name: restart systemd-timesyncd service
+  service:
+    name: systemd-timesyncd
+    state: restarted
+
+- name: restart syslog-ng service
+  service:
+    name: syslog-ng
+    state: restarted
+
+- name: restart bind9 service
+  service:
+    name: bind9
+    state: restarted

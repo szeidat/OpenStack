@@ -1,0 +1,12 @@
+; {{ ansible_managed }}
+
+@       IN      SOA     localhost. root.localhost. (
+                              2         ; Serial
+                         604800         ; Refresh
+                          86400         ; Retry
+                        2419200         ; Expire
+                         604800 )       ; Negative Cache TTL
+;
+@       IN      NS      localhost.
+{{ master_hostname }}         A       {{ master_management_ipaddress }}
+{{ stack_management_hostname }}         A         {{ stack_management_ipaddress }}

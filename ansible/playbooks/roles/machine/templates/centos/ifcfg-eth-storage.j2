@@ -1,0 +1,10 @@
+# {{ ansible_managed }}
+
+DEVICE=eth-storage
+BOOTPROTO=static
+IPADDR={{ storage_ipaddress }}
+NETMASK={{ storage_netmask }}
+NAME=eth-storage
+TYPE=Ethernet
+NM_CONTROLLED=no
+ONBOOT=yes

@@ -1,0 +1,33 @@
+---
+
+- name: install software packages
+  zypper:
+    name: "{{ item }}"
+    state: latest
+  with_items:
+  - openstack-magnum-api
+  - openstack-magnum-conductor
+  notify:
+  - sync magnum database
+
+- name: update magnum config
+  template:
+    src: magnum.conf.j2
+    dest: /etc/magnum/magnum.conf
+  notify:
+  - restart openstack-magnum-api service
+  - restart openstack-magnum-conductor service
+
+- name: enable openstack-magnum-api service
+  service:
+    name: openstack-magnum-api
+    enabled: yes
+
+- name: enable openstack-magnum-conductor service
+  service:
+    name: openstack-magnum-conductor
+    enabled: yes
+
+- name: run queued handlers
+  meta:
+    flush_handlers

@@ -1,0 +1,190 @@
+---
+
+- name: update system zypp repo
+  template:
+    src: opensuse/opensuse.repo.j2
+    dest: /etc/zypp/repos.d/opensuse.repo
+
+- name: copy openstack zypp repo key
+  copy:
+    src: opensuse/openstack.key
+    dest: /tmp/openstack.key
+
+- name: add openstack zypp repo key
+  rpm_key:
+    key: /tmp/openstack.key
+
+- name: update openstack zypp repo
+  template:
+    src: opensuse/openstack.repo.j2
+    dest: /etc/zypp/repos.d/openstack.repo
+
+- name: update packages
+  zypper:
+    name: '*'
+    state: latest
+    update_cache: yes
+
+- name: update hosts file
+  template:
+    src: hosts.j2
+    dest: /etc/hosts
+
+- name: update hostname file
+  template:
+    src: hostname.j2
+    dest: /etc/hostname
+
+- name: update udev rules
+  template:
+    src: persistent-net.rules.j2
+    dest: /etc/udev/rules.d/70-persistent-net.rules
+  notify:
+  - reboot host
+  - wait for host
+
+- name: remove default network interfaces
+  shell: /bin/rm -f /etc/sysconfig/network/ifcfg-eth{0,1,2,3,4,5,6}
+  args:
+    removes: /etc/sysconfig/network/ifcfg-eth0
+  notify:
+  - reboot host
+  - wait for host
+
+- name: update management interface
+  template:
+    src: opensuse/ifcfg-eth-management.j2
+    dest: /etc/sysconfig/network/ifcfg-eth-management
+  notify:
+  - reboot host
+  - wait for host
+
+- name: update default gateway
+  template:
+    src: opensuse/routes.j2
+    dest: /etc/sysconfig/network/routes
+  notify:
+  - reboot host
+  - wait for host
+
+- name: update dns settings
+  template:
+    src: opensuse/resolv.conf.j2
+    dest: /etc/resolv.conf
+  notify:
+  - reboot host
+  - wait for host
+
+- name: update access interface
+  template:
+    src: opensuse/ifcfg-eth-access.j2
+    dest: /etc/sysconfig/network/ifcfg-eth-access
+  when: access_macaddress is defined
+  notify:
+  - reboot host
+  - wait for host
+
+- name: update access ifup script
+  template:
+    src: opensuse/ifup-eth-access.j2
+    dest: /etc/sysconfig/network/scripts/ifup-eth-access
+    mode: 0755
+  when: access_macaddress is defined
+  notify:
+  - reboot host
+  - wait for host
+
+- name: update access ifdown script
+  template:
+    src: opensuse/ifdown-eth-access.j2
+    dest: /etc/sysconfig/network/scripts/ifdown-eth-access
+    mode: 0755
+  when: access_macaddress is defined
+  notify:
+  - reboot host
+  - wait for host
+
+- name: update external interface
+  template:
+    src: opensuse/ifcfg-eth-external.j2
+    dest: /etc/sysconfig/network/ifcfg-eth-external
+  when: external_macaddress is defined
+  notify:
+  - reboot host
+  - wait for host
+
+- name: update data interface
+  template:
+    src: opensuse/ifcfg-eth-data.j2
+    dest: /etc/sysconfig/network/ifcfg-eth-data
+  when: data_macaddress is defined
+  notify:
+  - reboot host
+  - wait for host
+
+- name: update storage interface
+  template:
+    src: opensuse/ifcfg-eth-storage.j2
+    dest: /etc/sysconfig/network/ifcfg-eth-storage
+  when: storage_macaddress is defined
+  notify:
+  - reboot host
+  - wait for host
+
+- name: update storage ifup script
+  template:
+    src: opensuse/ifup-eth-storage.j2
+    dest: /etc/sysconfig/network/scripts/ifup-eth-storage
+    mode: 0755
+  when: storage_macaddress is defined
+  notify:
+  - reboot host
+  - wait for host
+
+- name: update storage ifdown script
+  template:
+    src: opensuse/ifdown-eth-storage.j2
+    dest: /etc/sysconfig/network/scripts/ifdown-eth-storage
+    mode: 0755
+  when: storage_macaddress is defined
+  notify:
+  - reboot host
+  - wait for host
+
+- name: update replication interface
+  template:
+    src: opensuse/ifcfg-eth-replication.j2
+    dest: /etc/sysconfig/network/ifcfg-eth-replication
+  when: replication_macaddress is defined
+  notify:
+  - reboot host
+  - wait for host
+
+- name: update security interface
+  template:
+    src: opensuse/ifcfg-eth-security.j2
+    dest: /etc/sysconfig/network/ifcfg-eth-security
+  when: security_macaddress is defined
+  notify:
+  - reboot host
+  - wait for host
+
+- name: update trusted certificates
+  copy:
+    src: stackca.crt
+    dest: /etc/pki/trust/anchors/stackca.crt
+  notify:
+  - update ca certificates
+
+- name: run queued handlers
+  meta:
+    flush_handlers
+
+- name: gather host facts
+  setup:
+    gather_subset: network
+
+- name: check host rebooted
+  fail:
+    msg: Looks like the host did not reboot!
+  when: "'eth-management' not in ansible_interfaces"

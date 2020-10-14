@@ -1,0 +1,96 @@
+---
+
+- name: install software packages
+  yum:
+    name: "{{ item }}"
+    state: latest
+  with_items:
+  - openstack-dashboard
+  - openstack-dashboard-theme
+  when: not horizon_alt_theme
+
+- name: copy horizon redhat rpm files
+  copy:
+    src: "{{ item }}"
+    dest: /tmp
+  with_items:
+  - centos/openstack-dashboard-10.0.3-6.el7ost.noarch.rpm
+  - centos/openstack-dashboard-theme-10.0.3-6.el7ost.noarch.rpm
+  - centos/python-django-horizon-10.0.3-6.el7ost.noarch.rpm
+  when: horizon_alt_theme
+  changed_when: false
+
+- name: install software packages
+  yum:
+    name: "{{ item }}"
+    state: latest
+    disable_gpg_check: yes
+  with_items:
+  - /tmp/openstack-dashboard-10.0.3-6.el7ost.noarch.rpm
+  - /tmp/openstack-dashboard-theme-10.0.3-6.el7ost.noarch.rpm
+  - /tmp/python-django-horizon-10.0.3-6.el7ost.noarch.rpm
+  when: horizon_alt_theme
+
+- name: install software packages
+  yum:
+    name: "{{ item }}"
+    state: latest
+  with_items:
+  - openstack-manila-ui
+  - openstack-magnum-ui
+  - openstack-trove-ui
+
+- name: update horizon httpd config
+  template:
+    src: centos/httpd.conf.j2
+    dest: /etc/httpd/conf.d/openstack-dashboard.conf
+  notify:
+  - restart httpd service
+
+- name: update horizon config
+  template:
+    src: centos/local_settings.j2
+    dest: /etc/openstack-dashboard/local_settings
+  notify:
+  - restart httpd service
+
+- name: list manila default panels
+  find:
+    paths: /usr/share/openstack-dashboard/openstack_dashboard/local/enabled/
+    patterns: "*manila*"
+    file_type: any
+  register: panels
+  changed_when: false
+
+- name: remove manila default panels
+  file:
+    path: "{{ item.path }}"
+    state: absent
+  with_items:
+  - "{{ panels.files }}"
+  changed_when: false
+
+- name: add manila admin panel
+  file:
+    src: /etc/openstack-dashboard/enabled/_90_manila_admin_shares.py
+    dest: /usr/share/openstack-dashboard/openstack_dashboard/local/enabled/_2075_manila_admin_shares.py
+    state: link
+    force: yes
+  changed_when: false
+
+- name: add manila project panel
+  file:
+    src: /etc/openstack-dashboard/enabled/_90_manila_project_shares.py
+    dest: /usr/share/openstack-dashboard/openstack_dashboard/local/enabled/_1045_manila_project_shares.py
+    state: link
+    force: yes
+  changed_when: false
+
+- name: enable httpd service
+  service:
+    name: httpd
+    enabled: yes
+
+- name: run queued handlers
+  meta:
+    flush_handlers

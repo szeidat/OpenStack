@@ -1,0 +1,29 @@
+<%#
+kind: user_data
+name: CentOS VM customization
+oses:
+- CentOS
+- Ubuntu
+- openSUSE
+-%>
+identity:
+  LinuxPrep:
+    hostName: <%= @host.shortname %>
+    domain: <%= @host.domain %>
+    hwClockUTC: true
+    timeZone: Australia/Sydney
+globalIPSettings:
+    dnsSuffixList: [<%= @host.domain %>]
+    dnsServerList: ['{{ master_management_ipaddress }}']
+nicSettingMap:
+<% @host.interfaces.each do |interface| -%>
+  - adapter:
+<% if interface.ip -%>
+      ip: <%= interface.ip %>
+      subnetMask: <%= interface.subnet.mask %>
+      gateway: [<%= interface.subnet.gateway %>]
+<% else -%>
+      ip: <%= '0.0.0.0' %>
+      subnetMask: <%= '0.0.0.0' %>
+<% end -%>
+<% end -%>

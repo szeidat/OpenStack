@@ -1,0 +1,90 @@
+#!/bin/bash
+
+# Gather association
+function association_gather
+{
+  templateid=$(hammer template list | awk '/'"$template"'/{print $1}' 2>&1)
+  if [ $? -ne 0 ]; then
+    jq -n -c -M --arg msg "error getting association: $templateid" '{failed: true, msg: $msg}'
+    exit 1
+  fi
+
+  osid=$(hammer os list | awk '/'"$operating_system"'/{print $1}' 2>&1)
+  if [ $? -ne 0 ]; then
+    jq -n -c -M --arg msg "error getting association: $osid" '{failed: true, msg: $msg}'
+    exit 1
+  fi
+
+  output=$(hammer os info --id "$osid" 2>&1)
+  if [ $? -ne 0 ]; then
+    jq -n -c -M --arg msg "error getting association: $output" '{failed: true, msg: $msg}'
+    exit 1
+  fi
+}
+
+# Create association
+function association_create
+{
+  output=$(hammer os set-default-template --id "$osid" --config-template-id "$templateid" 2>&1)
+  if [ $? -ne 0 ]; then
+    jq -n -c -M --arg msg "error creating association: $output" '{failed: true, msg: $msg}'
+    exit 1
+  fi
+}
+
+# Delete association
+function association_delete
+{
+  output=$(hammer os delete-default-template --id "$osid" --type user_data 2>&1)
+  if [ $? -ne 0 ]; then
+    jq -n -c -M --arg msg "error deleting association: $output" '{failed: true, msg: $msg}'
+    exit 1
+  fi
+}
+
+# Read variables
+state=present
+source $1
+
+# Validate variables
+if [ -z "$template" ]; then
+  jq -n -c -M '{failed: true, msg: "missing required arguments: template"}'
+  exit 1
+fi
+
+if [ -z "$operating_system" ]; then
+  jq -n -c -M' {failed: true, msg: "missing required arguments: operating_system"}'
+  exit 1
+fi
+
+# Set requested state
+case $state in
+  present )
+  association_gather
+  if [ -z "$(echo "$output" | sed -n -e '/Default templates:/,/:/p' | grep -F "$template")" ]; then
+    association_create
+    jq -n -c -M --arg msg "$output" '{changed: true, msg: $msg}'
+    exit 0
+  else
+    jq -n -c -M --arg msg "$output" '{changed: false, msg: $msg}'
+    exit 0
+  fi
+  ;;
+
+  absent )
+  association_gather
+  if [ -z "$(echo "$output" | sed -n -e '/Default templates:/,/:/p' | grep -F "$template")" ]; then
+    jq -n -c -M --arg msg "$output" '{changed: false, msg: $msg}'
+    exit 0
+  else
+    association_delete
+    jq -n -c -M --arg msg "$output" '{changed: true, msg: $msg}'
+    exit 0
+  fi
+  ;;
+
+  * )
+  jq -n -c -M --arg msg "invalid state: $state" '{failed: true, msg: $msg}'
+  exit 1
+  ;;
+esac

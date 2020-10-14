@@ -1,0 +1,4 @@
+# {{ ansible_managed }}
+
+# rename network interfaces
+ACTION=="add", KERNEL=="{{ master_management_interface }}", ENV{DEVTYPE}!="vlan", ENV{DEVTYPE}!="bridge", NAME="eth-management"

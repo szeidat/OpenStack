@@ -1,0 +1,83 @@
+# {{ ansible_managed }}
+
+##################
+## Monitors
+## You need at least one. You need at least three if you want to
+## tolerate any node failures. Always create an odd number.
+[mon]
+### http://ceph.com/docs/giant/rados/configuration/mon-config-ref/
+### http://ceph.com/docs/giant/rados/configuration/mon-osd-interaction/
+
+    # The IDs of initial monitors in a cluster during startup.
+    # If specified, Ceph requires an odd number of monitors to form an
+    # initial quorum (e.g., 3).
+    # Type: String
+    # (Default: None)
+    ;mon initial members        = localhost
+
+    ;mon host                   = 192.168.0.101,192.168.0.102
+    ;mon addr                   = 192.168.0.101,192.168.0.102
+
+    # The monitor's data location
+    # Default: /var/lib/ceph/mon/$cluster-$id
+    ;mon data                   = /var/lib/ceph/mon/$name
+
+    # The clock drift in seconds allowed between monitors.
+    # Type: Float
+    # (Default: .050)
+    ;mon clock drift allowed    = .15
+
+    # Exponential backoff for clock drift warnings
+    # Type: Float
+    # (Default: 5)
+    ;mon clock drift warn backoff = 30    # Tell the monitor to backoff from this warning for 30 seconds
+
+    # The percentage of disk space used before an OSD is considered full.
+    # Type: Float
+    # (Default: .95)
+    ;mon osd full ratio         = .95
+
+    # The percentage of disk space used before an OSD is considered nearfull.
+    # Type: Float
+    # (Default: .85)
+    ;mon osd nearfull ratio     = .85
+
+    # The number of seconds Ceph waits before marking a Ceph OSD
+    # Daemon "down" and "out" if it doesn't respond.
+    # Type: 32-bit Integer
+    # (Default: 300)
+    ;mon osd down out interval  = 300
+
+    # The grace period in seconds before declaring unresponsive Ceph OSD
+    # Daemons "down".
+    # Type: 32-bit Integer
+    # (Default: 900)
+    ;mon osd report timeout          = 300
+
+### http://ceph.com/docs/giant/rados/troubleshooting/log-and-debug/
+
+    # logging, for debugging monitor crashes, in order of
+    # their likelihood of being helpful :)
+    ;debug ms                   = 1
+    ;debug mon                  = 20
+    ;debug paxos                = 20
+    ;debug auth                 = 20
+
+
+;[mon.alpha]
+;    host                       = alpha
+;    mon addr                   = 192.168.0.10:6789
+
+;[mon.beta]
+;    host                       = beta
+;    mon addr                   = 192.168.0.11:6789
+
+;[mon.gamma]
+;    host                       = gamma
+;    mon addr                   = 192.168.0.12:6789
+
+    # The maximum number of simultaneous scrub operations for a Ceph OSD Daemon.
+    # Type: 32-bit Int
+    # (Default: 1)
+    ;osd max scrubs               = 2
+

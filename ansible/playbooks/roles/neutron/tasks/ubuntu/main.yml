@@ -1,0 +1,59 @@
+---
+
+- name: install software packages
+  apt:
+    name: "{{ item }}"
+    state: latest
+  with_items:
+  - neutron-server
+  - neutron-plugin-ml2
+  - patch
+  notify:
+  - sync neutron database
+
+- name: copy vsphere networking software source
+  copy:
+    src: networking-vsphere-stable-newton.tar.gz
+    dest: /tmp/networking-vsphere-stable-newton.tar.gz
+  changed_when: false
+    
+- name: copy vsphere networking software patch 45dd174e
+  copy:
+    src: patch-45dd174e.diff
+    dest: /var/tmp/patch-45dd174e.diff
+  changed_when: false
+
+- name: install vsphere networking software
+  shell: |
+    mkdir /tmp/networking-vsphere
+    tar zxf /tmp/networking-vsphere-stable-newton.tar.gz -C /tmp/networking-vsphere --strip-components=1
+    cd /tmp/networking-vsphere
+    sed -i -e 's/cfg\.CONF\.DVS_AGENT\.report_interval/cfg.CONF.AGENT.report_interval/g' networking_vsphere/agent/dvs_neutron_agent.py
+    python setup.py install --install-data / --install-lib /usr/lib/python2.7/dist-packages --install-scripts /usr/bin --record ../networking-vsphere-files
+    patch -b -p 1 -N -i /var/tmp/patch-45dd174e.diff -d /usr/lib/python2.7/dist-packages
+    chown root:neutron /etc/neutron/ml2_conf_vmware_dvs.ini
+  args:
+    creates: /usr/lib/python2.7/dist-packages/networking_vsphere
+
+- name: update neutron config
+  template:
+    src: neutron.conf.j2
+    dest: /etc/neutron/neutron.conf
+  notify:
+  - restart neutron-server service
+
+- name: update ml2 plugin config
+  template:
+    src: ml2_conf.ini.j2
+    dest: /etc/neutron/plugins/ml2/ml2_conf.ini
+  notify:
+  - restart neutron-server service
+
+- name: enable neutron-server service
+  service:
+    name: neutron-server
+    enabled: yes
+
+- name: run queued handlers
+  meta:
+    flush_handlers

@@ -1,0 +1,81 @@
+# {{ ansible_managed }}
+
+[vmware]
+# Provide IP address for vCenter.
+# vcenter_ip =
+vcenter_ip = {{ vcenter_host }}
+
+# Provide vCenter Credentials.
+# vcenter_username =
+# vcenter_password =
+vcenter_username = {{ vcenter_user }}
+vcenter_password = {{ vcenter_password }}
+
+# SSL communication between OVSvApp Agent and vCenter Server
+# cert_check = False
+# Provide Certificate file location.
+# cert_path =
+cert_check = false
+
+# Customized https_port for OVSvApp agent and vCenter Server communication
+# https_port = 443
+
+# Number of retries by OVSvApp Agent to connect to vCenter server
+# vcenter_api_retry_count = 2
+
+# wsdl_location =
+# vCenter server wsdl location
+# Example:
+# wsdl_location=https://<vCenter_ip>:<https_port>/sdk/vimService.wsdl
+wsdl_location = https://{{ vcenter_host }}:443/sdk/vimService.wsdl
+
+# Provide Cluster to DVS/vDS mapping.
+# cluster_dvs_mapping =
+#
+# Example:
+# cluster_dvs_mapping = <DatacenterName>/<host>/<ClusterName>:<vDSName>
+cluster_dvs_mapping = {{ vcenter_datacenter }}/host/{{ vcenter_compute_cluster_name }}:{{ vcenter_security_dvswitch }}
+
+# Provide ESX host name or IP address.
+# esx_hostname =
+esx_hostname = {{ nova_compute_esx_hostname }}
+
+[ovsvapp]
+# Network type for tenant networks.
+# tenant_network_types =
+# OVSvApp Agent supports either VLAN, VXLAN or BOTH (VLAN and VXLAN)
+# Example:
+# tenant_network_types = vlan
+#TODO check why vxlan not working -> tenant_network_types = vlan, vxlan
+tenant_network_types = vlan
+
+# Local IP address of VXLAN tunnel endpoint.
+# local_ip =
+local_ip = {{ data_ipaddress }}
+
+# OVS integration bridge.
+# integration_bridge = br-int
+
+# Provide bridge mappings for VLAN networks.
+# bridge_mappings =
+#
+# Example:
+# bridge_mappings = physnet1:br-eth1
+# where eth1 is data interface.
+bridge_mappings = data:br-dat
+
+[securitygroup]
+# Provide bridge mapping for security groups.
+# security_bridge_mapping =
+#
+# Example:
+# security_bridge_mapping = br-sec:eth2
+# where br-sec is default security bridge and eth2 is trunk interface.
+security_bridge_mapping = br-sec:eth-security
+
+# Firewall driver for OVSvApp.
+# ovsvapp_firewall_driver = networking_vsphere.drivers.ovs_firewall.OVSFirewallDriver
+ovsvapp_firewall_driver = networking_vsphere.drivers.ovs_firewall.OVSFirewallDriver
+
+# For disbaling security groups.
+# ovsvapp_firewall_driver = neutron.agent.firewall.NoopFirewallDriver

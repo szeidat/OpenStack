@@ -1,0 +1,72 @@
+---
+
+- name: install software packages
+  apt:
+    name: "{{ item }}"
+    state: latest
+  with_items:
+  - openstack-dashboard
+  - python-manila-ui
+  - python-trove-dashboard
+
+- name: update horizon apache2 config
+  template:
+    src: ubuntu/apache2.conf.j2
+    dest: /etc/apache2/conf-available/openstack-dashboard.conf
+  notify:
+  - restart apache2 service
+
+- name: update horizon config
+  template:
+    src: ubuntu/local_settings.py.j2
+    dest: /etc/openstack-dashboard/local_settings.py
+  notify:
+  - restart apache2 service
+
+- name: create horizon log folder
+  file:
+    path: /var/log/horizon
+    state: directory
+
+- name: list manila default panels
+  find:
+    paths: /usr/share/openstack-dashboard/openstack_dashboard/enabled/
+    patterns: "*manila*"
+    file_type: any
+  register: panels
+  changed_when: false
+
+- name: remove manila default panels
+  file:
+    path: "{{ item.path }}"
+    state: absent
+  with_items:
+  - "{{ panels.files }}"
+  changed_when: false
+
+- name: add manila admin panel
+  copy:
+    src: /usr/lib/python2.7/dist-packages/openstack_dashboard/enabled/_90_manila_admin_shares.py
+    dest: /usr/share/openstack-dashboard/openstack_dashboard/enabled/_2075_manila_admin_shares.py
+    remote_src: true
+  changed_when: false
+
+- name: add manila project panel
+  copy:
+    src: /usr/lib/python2.7/dist-packages/openstack_dashboard/enabled/_90_manila_project_shares.py
+    dest: /usr/share/openstack-dashboard/openstack_dashboard/enabled/_1045_manila_project_shares.py
+    remote_src: true
+  changed_when: false
+
+- name: enable apache2 service
+  service:
+    name: apache2
+    enabled: yes
+
+- name: run queued handlers
+  meta:
+    flush_handlers
+
+- name: regenerate dynamic assits
+  shell: python /usr/share/openstack-dashboard/manage.py compress --force
+  changed_when: false

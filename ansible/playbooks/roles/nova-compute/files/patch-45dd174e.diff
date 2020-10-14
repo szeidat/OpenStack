@@ -1,0 +1,27 @@
+From 45dd174e1d65d2987ec6473152388a5dbd91486c Mon Sep 17 00:00:00 2001
+From: Stefan Nica <snica@suse.com>
+Date: Fri, 09 Jun 2017 18:31:14 +0200
+Subject: [PATCH] Handle network delete properly in vmware_dvs
+
+While deleting a network, the vmware_dvs mechanism
+driver is not properly handling the update_network_precommit
+call - the network_segments list is empty in this case.
+
+Closes-Bug: 1697034
+Change-Id: If0612d5632a73bfba2047f67c23dee7c1cfc71fb
+(cherry picked from commit 13288a1591bd7299a042dd34012966eb09fdabb7)
+---
+
+diff --git a/networking_vsphere/ml2/dvs_mechanism_driver.py b/networking_vsphere/ml2/dvs_mechanism_driver.py
+index 4bea8e2..56d188b 100644
+--- a/networking_vsphere/ml2/dvs_mechanism_driver.py
++++ b/networking_vsphere/ml2/dvs_mechanism_driver.py
+@@ -166,6 +166,8 @@
+             sleep(2)
+ 
+     def _check_net_type(self, network_context):
++        if not network_context.network_segments:
++            return False
+         network_type = network_context.network_segments[0]['network_type']
+         return network_type == constants.TYPE_VLAN
+ 

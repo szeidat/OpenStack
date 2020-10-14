@@ -1,0 +1,9 @@
+---
+
+- name: systemd daemon reload
+  shell: systemctl daemon-reload
+
+- name: restart ceph-osd service
+  service:
+    name: "ceph-osd@*"
+    state: restarted

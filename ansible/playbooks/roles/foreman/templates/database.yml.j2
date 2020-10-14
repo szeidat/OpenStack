@@ -1,0 +1,9 @@
+# {{ ansible_managed }}
+
+production:
+  adapter: mysql2
+  database: {{ foreman_database_name }}
+  username: {{ foreman_database_user }}
+  password: {{ foreman_database_password }}
+  host: localhost
+  socket: /var/run/mysqld/mysqld.sock

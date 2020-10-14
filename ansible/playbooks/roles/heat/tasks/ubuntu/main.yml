@@ -1,0 +1,49 @@
+---
+
+- name: install software packages
+  apt:
+    name: "{{ item }}"
+    state: latest
+  with_items:
+  - heat-api
+  - heat-api-cfn
+  - heat-engine
+  notify:
+  - sync heat database
+
+- name: update heat config
+  template:
+    src: heat.conf.j2
+    dest: /etc/heat/heat.conf
+  notify:
+  - restart heat-api service
+  - restart heat-api-cfn service
+  - restart heat-engine service
+
+- name: update heat api-paste config
+  template:
+    src: api-paste.ini.j2
+    dest: /etc/heat/api-paste.ini
+  notify:
+  - restart heat-api service
+  - restart heat-api-cfn service
+  - restart heat-engine service
+
+- name: enable heat-api service
+  service:
+    name: heat-api
+    enabled: yes
+
+- name: enable heat-api-cfn service
+  service:
+    name: heat-api-cfn
+    enabled: yes
+
+- name: enable heat-engine service
+  service:
+    name: heat-engine
+    enabled: yes
+
+- name: run queued handlers
+  meta:
+    flush_handlers

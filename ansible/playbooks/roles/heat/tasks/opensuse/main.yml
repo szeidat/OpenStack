@@ -1,0 +1,49 @@
+---
+
+- name: install software packages
+  zypper:
+    name: "{{ item }}"
+    state: latest
+  with_items:
+  - openstack-heat-api
+  - openstack-heat-api-cfn
+  - openstack-heat-engine
+  notify:
+  - sync heat database
+
+- name: update heat config
+  template:
+    src: heat.conf.j2
+    dest: /etc/heat/heat.conf
+  notify:
+  - restart openstack-heat-api service
+  - restart openstack-heat-api-cfn service
+  - restart openstack-heat-engine service
+
+- name: update heat api-paste config
+  template:
+    src: api-paste.ini.j2
+    dest: /etc/heat/api-paste.ini
+  notify:
+  - restart openstack-heat-api service
+  - restart openstack-heat-api-cfn service
+  - restart openstack-heat-engine service
+
+- name: enable openstack-heat-api service
+  service:
+    name: openstack-heat-api
+    enabled: yes
+
+- name: enable openstack-heat-api-cfn service
+  service:
+    name: openstack-heat-api-cfn
+    enabled: yes
+
+- name: enable openstack-heat-engine service
+  service:
+    name: openstack-heat-engine
+    enabled: yes
+
+- name: run queued handlers
+  meta:
+    flush_handlers

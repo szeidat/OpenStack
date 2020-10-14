@@ -1,0 +1,3 @@
+---
+
+- include: "{{ environment_distro }}/{{ glance_store_type }}.yml"

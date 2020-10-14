@@ -1,0 +1,9 @@
+---
+
+- name: systemd daemon reload
+  shell: systemctl daemon-reload
+
+- name: restart ceph-rgw service
+  service:
+    name: "ceph-radosgw@rgw.{{ inventory_hostname_short }}"
+    state: restarted

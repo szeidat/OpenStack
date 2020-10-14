@@ -1,0 +1,49 @@
+---
+
+- name: gather machine facts
+  shell: "hammer --output json host info --name {{ machine.name }}.{{ management_domain }}"
+  register: machine_facts
+  changed_when: false
+  ignore_errors: true
+  when:
+  - machine.provision
+
+- name: create temp folder
+  tempfile:
+    prefix: "foreman.create.{{ machine.name }}."
+    state: directory
+  register: temp_folder
+  when:
+  - machine.provision
+  - machine_facts | failed
+
+- name: create machine provisioning tasks
+  template:
+    src: centos/esx-foreman-create.yml.j2
+    dest: "{{ temp_folder.path }}/create.yml"
+  when:
+  - machine.provision
+  - machine_facts | failed
+
+- name: run machine provisioning tasks
+  include: "{{ temp_folder.path }}/create.yml"
+  when:
+  - machine.provision
+  - machine_facts | failed
+
+- name: gather machine facts
+  shell: "hammer --output json host info --name {{ machine.name }}.{{ management_domain }}"
+  register: machine_facts
+  changed_when: false
+  when:
+  - machine.provision
+
+- name: create host_vars folder
+  file:
+    path: "{{ work_folder }}/inventory/host_vars"
+    state: directory
+
+- name: update machine host_vars file
+  template:
+    src: esx-foreman-hostvars.j2
+    dest: "{{ work_folder }}/inventory/host_vars/{{ machine.name }}.{{ management_domain }}"

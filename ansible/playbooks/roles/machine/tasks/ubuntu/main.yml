@@ -1,0 +1,81 @@
+---
+
+- name: stop daily updates timer
+  service:
+    name: apt-daily.timer
+    state: stopped
+
+- name: disable daily updates timer
+  service:
+    name: apt-daily.timer
+    enabled: no
+
+- name: stop daily updates service
+  service:
+    name: apt-daily.service
+    state: stopped
+
+- name: update system apt sources
+  template:
+    src: ubuntu/sources.list.j2
+    dest: /etc/apt/sources.list
+
+- name: add cloud archive apt key
+  apt_key:
+    data: "{{ lookup('file', 'ubuntu/cloudarchive.key') }}"
+
+- name: update cloud apt sources
+  template:
+    src: ubuntu/cloudarchive.list.j2
+    dest: /etc/apt/sources.list.d/cloudarchive.list
+
+- name: update packages
+  apt:
+    upgrade: dist
+    update_cache: yes
+
+- name: update hosts file
+  template:
+    src: hosts.j2
+    dest: /etc/hosts
+
+- name: update hostname file
+  template:
+    src: hostname.j2
+    dest: /etc/hostname
+
+- name: update udev rules
+  template:
+    src: persistent-net.rules.j2
+    dest: /etc/udev/rules.d/70-persistent-net.rules
+  notify:
+  - reboot host
+  - wait for host
+
+- name: update network interfaces
+  template:
+    src: ubuntu/interfaces.j2
+    dest: /etc/network/interfaces
+  notify:
+  - reboot host
+  - wait for host
+
+- name: update trusted certificates
+  copy:
+    src: stackca.crt
+    dest: /usr/local/share/ca-certificates/stackca.crt
+  notify:
+  - update ca certificates
+
+- name: run queued handlers
+  meta:
+    flush_handlers
+
+- name: gather host facts
+  setup:
+    gather_subset: network
+
+- name: check host rebooted
+  fail:
+    msg: Looks like the host did not reboot!
+  when: "'eth-management' not in ansible_interfaces"

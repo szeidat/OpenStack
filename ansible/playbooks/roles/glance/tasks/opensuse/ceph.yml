@@ -1,0 +1,77 @@
+---
+
+- name: install software packages
+  zypper:
+    name: "{{ item }}"
+    state: latest
+  with_items:
+  - openstack-glance-api
+  - openstack-glance-registry
+  - ceph-common
+  notify:
+  - sync glance database
+  - import metadata definetions
+
+- name: create ceph config folder
+  file:
+    path: /etc/ceph/ceph.conf.d
+    state: directory
+
+- name: wait for ceph global config
+  local_action:
+    module: wait_for
+    path: /var/lib/ansible/ceph/ceph-global.conf
+    
+- name: copy ceph global config
+  copy:
+    src: /var/lib/ansible/ceph/ceph-global.conf
+    dest: /etc/ceph/ceph.conf.d/ceph-global.conf
+
+- name: assemble ceph config
+  assemble:
+    src: /etc/ceph/ceph.conf.d
+    dest: /etc/ceph/ceph.conf
+
+- name: wait for glance client keyring
+  local_action:
+    module: wait_for
+    path: /var/lib/ansible/ceph/glance.keyring
+
+- name: copy glance client keyring
+  copy:
+    src: /var/lib/ansible/ceph/glance.keyring
+    dest: /etc/ceph/ceph.client.glance.keyring
+
+- name: update glance client keyring file ownership
+  file:
+    path: /etc/ceph/ceph.client.glance.keyring
+    owner: glance
+    group: glance
+
+- name: update glance-api config
+  template:
+    src: glance-api.conf.j2
+    dest: /etc/glance/glance-api.conf
+  notify:
+  - restart openstack-glance-api service
+
+- name: update glance-registry config
+  template:
+    src: glance-registry.conf.j2
+    dest: /etc/glance/glance-registry.conf
+  notify:
+  - restart openstack-glance-registry service
+
+- name: enable openstack-glance-api service
+  service:
+    name: openstack-glance-api
+    enabled: yes
+
+- name: enable openstack-glance-registry service
+  service:
+    name: openstack-glance-registry
+    enabled: yes
+
+- name: run queued handlers
+  meta:
+    flush_handlers

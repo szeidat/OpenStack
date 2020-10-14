@@ -1,0 +1,84 @@
+#!/bin/bash
+
+# List user
+function user_list
+{
+  output=$(openstack --os-cloud "$cloud" user list --format value --domain "$domain" 2>&1)
+  if [ $? -ne 0 ]; then
+    jq -n -c -M --arg msg "error getting user list: $output" '{failed: true, msg: $msg}'
+    exit 1
+  fi
+}
+
+# Create user
+function user_create
+{
+  output=$(openstack --os-cloud "$cloud" user create --format value --domain "$domain" --password "$password" "$name" 2>&1)
+  if [ $? -ne 0 ]; then
+    jq -n -c -M --arg msg "error creating user: $output" '{failed: true, msg: $msg}'
+    exit 1
+  fi
+}
+
+# Delete user
+function user_delete
+{
+  output=$(openstack --os-cloud "$cloud" user delete --domain "$domain" "$name" 2>&1)
+  if [ $? -ne 0 ]; then
+    jq -n -c -M --arg msg "error deleting user: $output" '{failed: true, msg: $msg}'
+    exit 1
+  fi
+}
+
+# Read variables
+state=present
+domain=default
+source $1
+
+# Validate variables
+if [ -z "$cloud" ]; then
+  jq -n -c -M '{failed: true, msg: "missing required arguments: cloud"}'
+  exit 1
+fi
+
+if [ -z "$name" ]; then
+  jq -n -c -M' {failed: true, msg: "missing required arguments: name"}'
+  exit 1
+fi
+
+if [ -z "$password" ]; then
+  jq -n -c -M '{failed: true, msg: "missing required arguments: password"}'
+  exit 1
+fi
+
+# Set requested state
+case $state in
+  present )
+  user_list
+  if [ -z "$(echo "$output" | grep -F "$name")" ]; then
+    user_create
+    jq -n -c -M --arg msg "$output" '{changed: true, msg: $msg}'
+    exit 0
+  else
+    jq -n -c -M --arg msg "$output" '{changed: false, msg: $msg}'
+    exit 0
+  fi
+  ;;
+
+  absent )
+  user_list
+  if [ -z "$(echo "$output" | grep -F "$name")" ]; then
+    jq -n -c -M --arg msg "$output" '{changed: false, msg: $msg}'
+    exit 0
+  else
+    user_delete
+    jq -n -c -M --arg msg "$output" '{changed: true, msg: $msg}'
+    exit 0
+  fi
+  ;;
+
+  * )
+  jq -n -c -M --arg msg "invalid state: $state" '{failed: true, msg: $msg}'
+  exit 1
+  ;;
+esac

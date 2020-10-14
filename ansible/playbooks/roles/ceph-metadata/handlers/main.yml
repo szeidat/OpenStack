@@ -1,0 +1,9 @@
+---
+
+- name: systemd daemon reload
+  shell: systemctl daemon-reload
+
+- name: restart ceph-mds service
+  service:
+    name: "ceph-mds@{{ inventory_hostname_short }}"
+    state: restarted

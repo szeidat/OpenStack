@@ -1,0 +1,123 @@
+---
+
+- name: install software packages
+  yum:
+    name: "{{ item }}"
+    state: latest
+  with_items:
+  - openstack-nova-compute
+  - openstack-neutron-ml2
+  - ipset
+  - openvswitch
+
+- name: copy ovsvapp software source
+  copy:
+    src: networking-vsphere-stable-newton.tar.gz
+    dest: /tmp/networking-vsphere-stable-newton.tar.gz
+  changed_when: false
+
+- name: install ovsvapp software
+  shell: |
+    mkdir /tmp/networking-vsphere
+    tar zxf /tmp/networking-vsphere-stable-newton.tar.gz -C /tmp/networking-vsphere --strip-components=1
+    cd /tmp/networking-vsphere
+    python setup.py install --install-data / --record ../networking-vsphere-files
+    cp -f networking_vsphere/nova/virt/vmwareapi/ovsvapp_vmops.py /usr/lib/python2.7/site-packages/nova/virt/vmwareapi/
+    cp -f networking_vsphere/nova/virt/vmwareapi/ovsvapp_vc_driver.py /usr/lib/python2.7/site-packages/nova/virt/vmwareapi/   
+    chown root:neutron /etc/neutron/plugins/ml2/ovsvapp_agent.ini
+    chmod 640 /etc/neutron/plugins/ml2/ovsvapp_agent.ini
+  args:
+    creates: /usr/bin/neutron-ovsvapp-agent
+  notify:
+  - sync neutron database
+
+- name: copy ovsvapp rootwrap file
+  copy:
+    src: ovsvapp-plugin.filters
+    dest: /usr/share/neutron/rootwrap/ovsvapp-plugin.filters
+
+- name: copy ovsvapp service file
+  copy:
+    src: centos/ovsvapp-agent.service
+    dest: /usr/lib/systemd/system/neutron-ovsvapp-agent.service
+
+- name: update default plugin link
+  file:
+    src: /etc/neutron/plugins/ml2/ml2_conf.ini
+    dest: /etc/neutron/plugin.ini
+    state: link
+    force: yes
+
+- name: start openvswitch service
+  service:
+    name: openvswitch
+    state: started
+
+- name: create data bridge
+  openvswitch_bridge:
+    bridge: br-dat
+    state: present
+
+- name: add data bridge interface
+  openvswitch_port:
+    bridge: br-dat
+    port: eth-data
+    state: present
+
+- name: create security bridge
+  openvswitch_bridge:
+    bridge: br-sec
+    state: present
+
+- name: add security bridge interface
+  openvswitch_port:
+    bridge: br-sec
+    port: eth-security
+    state: present
+
+- name: update nova config
+  template:
+    src: nova.conf.j2
+    dest: /etc/nova/nova.conf
+  notify:
+  - restart openstack-nova-compute service
+
+- name: update neutron config
+  template:
+    src: neutron.conf.j2
+    dest: /etc/neutron/neutron.conf
+  notify:
+  - restart neutron-ovsvapp-agent service
+
+- name: update ml2 plugin config
+  template:
+    src: ml2_conf.ini.j2
+    dest: /etc/neutron/plugins/ml2/ml2_conf.ini
+  notify:
+  - restart neutron-ovsvapp-agent service
+
+- name: update ovsvapp agent config
+  template:
+    src: ovsvapp_agent.ini.j2
+    dest: /etc/neutron/plugins/ml2/ovsvapp_agent.ini
+  notify:
+  - restart neutron-ovsvapp-agent service
+
+- name: enable openvswitch service
+  service:
+    name: openvswitch
+    enabled: yes
+
+- name: enable openstack-nova-compute service
+  service:
+    name: openstack-nova-compute
+    enabled: yes
+
+- name: enable neutron-ovsvapp-agent service
+  service:
+    name: neutron-ovsvapp-agent
+    enabled: yes
+
+- name: run queued handlers
+  meta:
+    flush_handlers

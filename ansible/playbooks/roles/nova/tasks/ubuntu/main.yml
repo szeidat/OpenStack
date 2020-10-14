@@ -1,0 +1,55 @@
+---
+
+- name: install software packages
+  apt:
+    name: "{{ item }}"
+    state: latest
+  with_items:
+  - nova-api
+  - nova-conductor
+  - nova-console
+  - nova-novncproxy
+  - nova-scheduler
+  notify:
+  - sync nova api database
+  - sync nova database
+
+- name: update nova config
+  template:
+    src: nova.conf.j2
+    dest: /etc/nova/nova.conf
+  notify:
+  - restart nova-api service
+  - restart nova-consoleauth service
+  - restart nova-scheduler service
+  - restart nova-conductor service
+  - restart nova-novncproxy service
+
+- name: enable nova-api service
+  service:
+    name: nova-api
+    enabled: yes
+
+- name: enable nova-consoleauth service
+  service:
+    name: nova-consoleauth
+    enabled: yes
+
+- name: enable nova-scheduler service
+  service:
+    name: nova-scheduler
+    enabled: yes
+
+- name: enable nova-conductor service
+  service:
+    name: nova-conductor
+    enabled: yes
+
+- name: enable nova-novncproxy service
+  service:
+    name: nova-novncproxy
+    enabled: yes
+
+- name: run queued handlers
+  meta:
+    flush_handlers

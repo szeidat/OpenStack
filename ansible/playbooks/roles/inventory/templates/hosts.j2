@@ -1,0 +1,21 @@
+[deployment-master]
+{{ master_hostname }}.{{ management_domain }}
+{% if provision_mode == 'create' %}
+{% set host_groups = [] %}
+{% for machine in environment_machines %}
+{% for group in machine.groups %}
+{% if group not in host_groups %}
+{% set _ = host_groups.append(group) %}
+{% endif %}
+{% endfor %}
+{% endfor %}
+{% for group in host_groups %}
+
+[{{ group }}]
+{% for machine in environment_machines %}
+{% if group in machine.groups %}
+{{ machine.name }}.{{ management_domain }}
+{% endif %}
+{% endfor %}
+{% endfor %}
+{% endif %}

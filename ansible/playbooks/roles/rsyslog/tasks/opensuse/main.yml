@@ -1,0 +1,34 @@
+---
+
+- name: remove software packages
+  zypper:
+    name: systemd-logger
+    state: absent
+
+- name: copy rsyslog rpm file
+  copy:
+    src: opensuse/rsyslog-8.24.0-1.3.x86_64.rpm
+    dest: /tmp
+  changed_when: false
+
+- name: install software packages
+  zypper:
+    name: /tmp/rsyslog-8.24.0-1.3.x86_64.rpm
+    state: latest
+    disable_gpg_check: yes
+
+- name: update rsyslog stack config
+  template:
+    src: opensuse/stack.conf.j2
+    dest: /etc/rsyslog.d/stack.conf
+  notify:
+  - restart rsyslog service
+
+- name: enable rsyslog service
+  service:
+    name: rsyslog
+    enabled: yes
+
+- name: run queued handlers
+  meta:
+    flush_handlers

@@ -1,0 +1,29 @@
+---
+
+- name: sync cinder database
+  command: /usr/bin/cinder-manage db sync
+  become: true
+  become_method: su
+  become_user: cinder
+  become_flags: '-s /bin/bash'
+  run_once: true
+
+- name: restart cinder-api service
+  service:
+    name: cinder-api
+    state: restarted
+
+- name: restart cinder-scheduler service
+  service:
+    name: cinder-scheduler
+    state: restarted
+
+- name: restart openstack-cinder-api service
+  service:
+    name: openstack-cinder-api
+    state: restarted
+
+- name: restart openstack-cinder-scheduler service
+  service:
+    name: openstack-cinder-scheduler
+    state: restarted

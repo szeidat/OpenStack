@@ -1,0 +1,134 @@
+---
+
+- name: set idle session timeout
+  foreman_setting:
+    name: idle_timeout
+    value: 4320
+
+- name: set trusted hosts
+  foreman_setting:
+    name: trusted_puppetmaster_hosts
+    value: '[localhost]'
+
+- name: set create host on uploaded facts
+  foreman_setting:
+    name: create_new_host_when_facts_are_uploaded
+    value: 'false'
+
+- name: set create host on uploaded report
+  foreman_setting:
+    name: create_new_host_when_report_is_uploaded
+    value: 'false'
+
+- name: create dns proxy
+  foreman_proxy:
+    name: "{{ master_hostname }}"
+    url: 'http://localhost:8000'
+
+- name: create dns domain
+  foreman_domain:
+    name: "{{ management_domain }}"
+    proxy: "{{ master_hostname }}"
+
+- name: create management subent
+  foreman_subnet:
+    name: "{{ vcenter_management_portgroup }}"
+    network: "{{ management_subnet }}"
+    netmask: "{{ management_netmask }}"
+    gateway: "{{ management_gateway }}"
+    dns_server: "{{ master_management_ipaddress }}"
+    dns_proxy: "{{ master_hostname }}"
+    domain: "{{ management_domain }}"
+
+- name: create vmware compute resource
+  foreman_vmware:
+    name: "{{ vcenter_datacenter }}"
+    host: "{{ vcenter_host }}"
+    user: "{{ vcenter_user }}"
+    password: "{{ vcenter_password }}"
+    datacenter: "{{ vcenter_datacenter }}"
+
+- name: create centos os
+  foreman_os:
+    name: CentOS
+    architecture: x86_64
+    family: Redhat
+    major: "{{ foreman_centos_os_major }}"
+    minor: "{{ foreman_centos_os_minor }}"
+
+- name: create opensuse os
+  foreman_os:
+    name: openSUSE
+    architecture: x86_64
+    family: Suse
+    major: "{{ foreman_opensuse_os_major }}"
+    minor: "{{ foreman_opensuse_os_minor }}"
+
+- name: create ubuntu os
+  foreman_os:
+    name: Ubuntu
+    architecture: x86_64
+    family: Debian
+    major: "{{ foreman_ubuntu_os_major }}"
+    minor: "{{ foreman_ubuntu_os_minor }}"
+
+- name: create os template file
+  template:
+    src: vm_template.erb.j2
+    dest: /tmp/vm_template.erb
+
+- name: create os template
+  foreman_template:
+    name: "{{ foreman_os_customization }}"
+    type: user_data
+    operating_systems: 
+    - "CentOS {{ foreman_centos_os_major }}.{{ foreman_centos_os_minor }}"
+    - "openSUSE {{ foreman_opensuse_os_major }}.{{ foreman_opensuse_os_minor }}"
+    - "Ubuntu {{ foreman_ubuntu_os_major }}.{{ foreman_ubuntu_os_minor }}"
+    file: /tmp/vm_template.erb
+
+- name: update centos default template
+  foreman_os_template:
+    operating_system: "CentOS {{ foreman_centos_os_major }}.{{ foreman_centos_os_minor }}"
+    template: "{{ foreman_os_customization }}"
+
+- name: update opensuse default template
+  foreman_os_template:
+    operating_system: "openSUSE {{ foreman_opensuse_os_major }}.{{ foreman_opensuse_os_minor }}"
+    template: "{{ foreman_os_customization }}"
+
+- name: update ubuntu default template
+  foreman_os_template:
+    operating_system: "Ubuntu {{ foreman_ubuntu_os_major }}.{{ foreman_ubuntu_os_minor }}"
+    template: "{{ foreman_os_customization }}"
+
+- name: create centos image
+  foreman_image:
+    name: 'CentOS VM image'
+    resource: "{{ vcenter_datacenter }}"
+    operating_system: "CentOS {{ foreman_centos_os_major }}.{{ foreman_centos_os_minor }}"
+    vm_template: "{{ vcenter_vm_templates_folder }}/{{ vcenter_centos_vm_template }}"
+
+- name: create opensuse image
+  foreman_image:
+    name: 'openSUSE VM image'
+    resource: "{{ vcenter_datacenter }}"
+    operating_system: "openSUSE {{ foreman_opensuse_os_major }}.{{ foreman_opensuse_os_minor }}"
+    vm_template: "{{ vcenter_vm_templates_folder }}/{{ vcenter_opensuse_vm_template }}"
+
+- name: create ubuntu image
+  foreman_image:
+    name: 'Ubuntu VM image'
+    resource: "{{ vcenter_datacenter }}"
+    operating_system: "Ubuntu {{ foreman_ubuntu_os_major }}.{{ foreman_ubuntu_os_minor }}"
+    vm_template: "{{ vcenter_vm_templates_folder }}/{{ vcenter_ubuntu_vm_template }}"
+
+- name: create os partitions table file
+  copy:
+    src: vm_partitions.erb
+    dest: /tmp/vm_partitions.erb
+
+- name: create os partitions table
+  foreman_partitions:
+    name: "{{ foreman_os_partitions }}"
+    file: /tmp/vm_partitions.erb

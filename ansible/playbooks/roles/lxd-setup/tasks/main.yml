@@ -1,0 +1,26 @@
+---
+
+- name: add lxd repository key
+  apt_key:
+    data: "{{ lookup('file', 'lxd.key') }}"
+
+- name: update lxd apt sources
+  template:
+    src: lxd.list.j2
+    dest: /etc/apt/sources.list.d/lxd.list
+
+- name: install software packages
+  apt:
+    name: lxd-client
+    state: latest
+    update_cache: yes
+
+- name: add lxd remote host
+  lxd_remote:
+    name: "{{ lxd_remote_name }}"
+    url: "{{ lxd_remote_url }}"
+    password: "{{ lxd_remote_password }}"
+
+- name: run queued handlers
+  meta:
+    flush_handlers

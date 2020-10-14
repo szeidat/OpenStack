@@ -1,0 +1,29 @@
+---
+
+- name: install software packages
+  apt:
+    name: rsyslog
+    state: latest
+
+- name: update rsyslog main config
+  copy:
+    src: ubuntu/rsyslog.conf
+    dest: /etc/rsyslog.conf
+  notify:
+  - restart rsyslog service
+
+- name: update rsyslog stack config
+  template:
+    src: ubuntu/stack.conf.j2
+    dest: /etc/rsyslog.d/20-stack.conf
+  notify:
+  - restart rsyslog service
+
+- name: enable rsyslog service
+  service:
+    name: rsyslog
+    enabled: yes
+
+- name: run queued handlers
+  meta:
+    flush_handlers

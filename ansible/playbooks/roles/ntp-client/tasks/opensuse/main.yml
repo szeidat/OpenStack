@@ -1,0 +1,32 @@
+---
+
+- name: install software packages
+  zypper:
+    name: ntp
+    state: latest
+  when: ntp_timesync
+
+- name: update ntp config
+  template:
+    src: opensuse/ntp.conf.j2
+    dest: /etc/ntp.conf
+  when: ntp_timesync
+  notify:
+  - restart ntpd service
+
+- name: enable ntpd service
+  service:
+    name: ntpd
+    enabled: yes
+  when: ntp_timesync
+
+- name: run queued handlers
+  meta:
+    flush_handlers
+
+- name: update timezone
+  file:
+    src: "/usr/share/zoneinfo/{{ ntp_timezone }}"
+    dest: /etc/localtime
+    state: link
+    force: yes

@@ -1,0 +1,20 @@
+---
+
+- name: gather machine facts
+  shell: "hammer --output json host info --name {{ machine.name }}.{{ management_domain }}"
+  register: machine_facts
+  changed_when: false
+  ignore_errors: true
+  when:
+  - machine.provision
+
+- name: "delete {{ machine.name }}"
+  shell: "hammer host delete --name {{ machine.name }}.{{ management_domain }}"
+  when:
+  - machine.provision
+  - machine_facts | success
+
+- name: delete machine host_vars file
+  file:
+    path: "{{ work_folder }}/inventory/host_vars/{{ machine.name }}.{{ management_domain }}"
+    state: absent

@@ -1,0 +1,94 @@
+#!/bin/bash
+
+# List endpoint
+function endpoint_list
+{
+  output=$(openstack --os-cloud "$cloud" endpoint list --format value --service "$service" --interface "$interface" --region "$region" 2>&1)
+  if [ $? -ne 0 ]; then
+    jq -n -c -M --arg msg "error getting endpoint list: $output" '{failed: true, msg: $msg}'
+    exit 1
+  fi
+}
+
+# Create endpoint
+function endpoint_create
+{
+  output=$(openstack --os-cloud "$cloud" endpoint create --format value --region "$region" "$service" "$interface" "$url" 2>&1)
+  if [ $? -ne 0 ]; then
+    jq -n -c -M --arg msg "error creating endpoint: $output" '{failed: true, msg: $msg}'
+    exit 1
+  fi
+}
+
+# Delete endpoint
+function endpoint_delete
+{
+  output=$(openstack --os-cloud "$cloud" endpoint delete "$id" 2>&1)
+  if [ $? -ne 0 ]; then
+    jq -n -c -M --arg msg "error deleting endpoint: $output" '{failed: true, msg: $msg}'
+    exit 1
+  fi
+}
+
+# Read variables
+state=present
+source $1
+
+# Validate variables
+if [ -z "$cloud" ]; then
+  jq -n -c -M '{failed: true, msg: "missing required arguments: cloud"}'
+  exit 1
+fi
+
+if [ -z "$service" ]; then
+  jq -n -c -M' {failed: true, msg: "missing required arguments: service"}'
+  exit 1
+fi
+
+if [ -z "$interface" ]; then
+  jq -n -c -M '{failed: true, msg: "missing required arguments: interface"}'
+  exit 1
+fi
+
+if [ -z "$region" ]; then
+  jq -n -c -M' {failed: true, msg: "missing required arguments: region"}'
+  exit 1
+fi
+
+if [ -z "$url" ]; then
+  jq -n -c -M' {failed: true, msg: "missing required arguments: url"}'
+  exit 1
+fi
+
+# Set requested state
+case $state in
+  present )
+  endpoint_list
+  if [ -z "$(echo "$output" | grep -F "$service")" ]; then
+    endpoint_create
+    jq -n -c -M --arg msg "$output" '{changed: true, msg: $msg}'
+    exit 0
+  else
+    jq -n -c -M --arg msg "$output" '{changed: false, msg: $msg}'
+    exit 0
+  fi
+  ;;
+
+  absent )
+  endpoint_list
+  if [ -z "$(echo "$output" | grep -F "$service")" ]; then
+    jq -n -c -M --arg msg "$output" '{changed: false, msg: $msg}'
+    exit 0
+  else
+    id=$(echo "$output" | awk '{print $1}')
+    endpoint_delete
+    jq -n -c -M --arg msg "$output" '{changed: true, msg: $msg}'
+    exit 0
+  fi
+  ;;
+
+  * )
+  jq -n -c -M --arg msg "invalid state: $state" '{failed: true, msg: $msg}'
+  exit 1
+  ;;
+esac

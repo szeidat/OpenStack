@@ -1,0 +1,38 @@
+---
+
+- name: install software packages
+  yum:
+    name: memcached
+    state: latest
+
+- name: create memcached service override folder
+  file:
+    path: /etc/systemd/system/memcached.service.d
+    state: directory
+  when: lxd_memcached_service_override is defined and lxd_memcached_service_override
+  notify:
+  - systemd daemon reload
+
+- name: create memcached service override
+  copy:
+    src: memcached.override.conf
+    dest: /etc/systemd/system/memcached.service.d/override.conf
+  when: lxd_memcached_service_override is defined and lxd_memcached_service_override
+  notify:
+  - systemd daemon reload
+
+- name: update memcached config
+  template:
+    src: centos/memcached.j2
+    dest: /etc/sysconfig/memcached
+  notify:
+  - restart memcached service
+
+- name: enable memcached service
+  service:
+    name: memcached
+    enabled: yes
+
+- name: run queued handlers
+  meta:
+    flush_handlers

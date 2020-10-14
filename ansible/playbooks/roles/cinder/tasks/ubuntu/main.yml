@@ -1,0 +1,33 @@
+---
+
+- name: install software packages
+  apt:
+    name: "{{ item }}"
+    state: latest
+  with_items:
+  - cinder-api
+  - cinder-scheduler
+  notify:
+  - sync cinder database
+
+- name: update cinder config
+  template:
+    src: cinder.conf.j2
+    dest: /etc/cinder/cinder.conf
+  notify:
+  - restart cinder-api service
+  - restart cinder-scheduler service
+
+- name: enable cinder-api service
+  service:
+    name: cinder-api
+    enabled: yes
+
+- name: enable cinder-scheduler service
+  service:
+    name: cinder-scheduler
+    enabled: yes
+
+- name: run queued handlers
+  meta:
+    flush_handlers

@@ -1,0 +1,40 @@
+---
+
+- name: get management subnet id
+  shell: hammer subnet list | awk '/management/{print $1}'
+  register: get_subnetid
+
+- name: create {{ machine.name }}
+  shell: >
+    hammer host create
+    --name {{ machine.name }}
+    --domain {{ management_domain }}
+    --build false
+    --architecture x86_64
+    --partition-table "{{ foreman_os_partitions }}"
+    --compute-resource {{ vcenter_datacenter }}
+    --enabled true
+    --managed true
+    --provision-method image
+    --operatingsystem "CentOS {{ foreman_centos_os_major }}.{{ foreman_centos_os_minor }}"
+    --compute-attributes cpus={{ machine.cpus }},corespersocket=1,memory_mb={{ machine.memory_mb }},cluster={{ machine.cluster }},path="{{ vcenter_vm_machines_folder }}",scsi_controller_type=VirtualLsiLogicSASController,hardware_version=vmx-11,memoryHotAddEnabled=0,cpuHotAddEnabled=0,add_cdrom=0,start=1,guest_id=centos64Guest,image_id="{{ vcenter_vm_templates_folder }}/{{ vcenter_centos_vm_template }}"
+{% for nic in machine.nics %}
+{% if nic.network == 'management' %}
+    --interface subnet_id={{ '"{{' }} get_subnetid.stdout {{ '}}"' }},ip={{ nic.ipaddress }},managed=1,primary=1,provision=1,virtual=0,compute_type=VirtualE1000,compute_network={{ vcenter_management_portgroup }}
+{% elif nic.network == 'access' %}
+    --interface managed=1,primary=0,provision=0,virtual=0,compute_type=VirtualE1000,compute_network={{ vcenter_access_portgroup }}
+{% elif nic.network == 'external' %}
+    --interface managed=1,primary=0,provision=0,virtual=0,compute_type=VirtualE1000,compute_network={{ vcenter_external_portgroup }}
+{% elif nic.network == 'data' %}
+    --interface managed=1,primary=0,provision=0,virtual=0,compute_type=VirtualE1000,compute_network={{ vcenter_data_portgroup }}
+{% elif nic.network == 'storage' %}
+    --interface managed=1,primary=0,provision=0,virtual=0,compute_type=VirtualE1000,compute_network={{ vcenter_storage_portgroup }}
+{% elif nic.network == 'replication' %}
+    --interface managed=1,primary=0,provision=0,virtual=0,compute_type=VirtualE1000,compute_network={{ vcenter_replication_portgroup }}
+{% elif nic.network == 'security' %}
+    --interface managed=1,primary=0,provision=0,virtual=0,compute_type=VirtualE1000,compute_network={{ vcenter_security_portgroup }}
+{% endif %}
+{% endfor %}
+{% for disk in machine.disks %}
+    --volume datastore={{ machine.datastore }},size_gb={{ disk.size_gb }},thin=true,eager_zero=false
+{% endfor %}

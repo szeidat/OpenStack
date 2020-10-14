@@ -1,0 +1,195 @@
+#!/bin/bash
+
+# List roles
+function role_list
+{
+  output=$(openstack --os-cloud "$cloud" role list --format value 2>&1)
+  if [ $? -ne 0 ]; then
+    jq -n -c -M --arg msg "error getting role list: $output" '{failed: true, msg: $msg}'
+    exit 1
+  fi
+}
+
+# Create role
+function role_create
+{
+  output=$(openstack --os-cloud "$cloud" role create --format value "$name" 2>&1)
+  if [ $? -ne 0 ]; then
+    jq -n -c -M --arg msg "error creating role: $output" '{failed: true, msg: $msg}'
+    exit 1
+  fi
+}
+
+# Delete role
+function role_delete
+{
+  output=$(openstack --os-cloud "$cloud" role delete "$name" 2>&1)
+  if [ $? -ne 0 ]; then
+    jq -n -c -M --arg msg "error deleting role: $output" '{failed: true, msg: $msg}'
+    exit 1
+  fi
+}
+
+# List domain assignments
+function domain_assignment_list
+{
+  output=$(openstack --os-cloud "$cloud" role assignment list --format value --user "$user" --user-domain "$domain" --domain "$domain" --role "$name" --names 2>&1)
+  if [ $? -ne 0 ]; then
+    jq -n -c -M --arg msg "error getting role assignment list: $output" '{failed: true, msg: $msg}'
+    exit 1
+  fi
+}
+
+# Add domain assignment
+function domain_assignment_add
+{
+  output=$(openstack --os-cloud "$cloud" role add --user "$user" --user-domain "$domain" --domain "$domain" "$name" 2>&1)
+  if [ $? -ne 0 ]; then
+    jq -n -c -M --arg msg "error adding role assignment: $output" '{failed: true, msg: $msg}'
+    exit 1
+  fi
+}
+
+# Remove domain assignment
+function domain_assignment_remove
+{
+  output=$(openstack --os-cloud "$cloud" role remove --user "$user" --user-domain "$domain" --domain "$domain" "$name" 2>&1)
+  if [ $? -ne 0 ]; then
+    jq -n -c -M --arg msg "error removing role assignment: $output" '{failed: true, msg: $msg}'
+    exit 1
+  fi
+}
+
+# List project assignments
+function project_assignment_list
+{
+  output=$(openstack --os-cloud "$cloud" role assignment list --format value --user "$user" --user-domain "$domain" --project "$project" --role "$name" --names 2>&1)
+  if [ $? -ne 0 ]; then
+    jq -n -c -M --arg msg "error getting role assignment list: $output" '{failed: true, msg: $msg}'
+    exit 1
+  fi
+}
+
+# Add project assignment
+function project_assignment_add
+{
+  output=$(openstack --os-cloud "$cloud" role add --user "$user" --user-domain "$domain" --project "$project" "$name" 2>&1)
+  if [ $? -ne 0 ]; then
+    jq -n -c -M --arg msg "error adding role assignment: $output" '{failed: true, msg: $msg}'
+    exit 1
+  fi
+}
+
+# Remove project assignment
+function project_assignment_remove
+{
+  output=$(openstack --os-cloud "$cloud" role remove --user "$user" --user-domain "$domain" --project "$project" "$name" 2>&1)
+  if [ $? -ne 0 ]; then
+    jq -n -c -M --arg msg "error removing role assignment: $output" '{failed: true, msg: $msg}'
+    exit 1
+  fi
+}
+
+# Read variables
+state=present
+domain=default
+source $1
+
+# Validate variables
+if [ -z "$cloud" ]; then
+  jq -n -c -M '{failed: true, msg: "missing required arguments: cloud"}'
+  exit 1
+fi
+
+if [ -z "$name" ]; then
+  jq -n -c -M' {failed: true, msg: "missing required arguments: name"}'
+  exit 1
+fi
+
+# Set requested state
+case $state in
+  present )
+  role_list
+  if [ -z "$(echo "$output" | grep -F "$name")" ]; then
+    role_create
+    jq -n -c -M --arg msg "$output" '{changed: true, msg: $msg}'
+    exit 0
+  else
+    jq -n -c -M --arg msg "$output" '{changed: false, msg: $msg}'
+    exit 0
+  fi
+  ;;
+
+  absent )
+  role_list
+  if [ -z "$(echo "$output" | grep -F "$name")" ]; then
+    jq -n -c -M --arg msg "$output" '{changed: false, msg: $msg}'
+    exit 0
+  else
+    role_delete
+    jq -n -c -M --arg msg "$output" '{changed: true, msg: $msg}'
+    exit 0
+  fi
+  ;;
+
+  added )
+  if [ -z "$user" ]; then
+    jq -n -c -M '{failed: true, msg: "missing required arguments: user"}'
+    exit 1
+  fi
+  if [ -z "$project" ]; then
+    domain_assignment_list
+    if [ -z "$(echo "$output" | grep -F "$name")" ]; then
+      domain_assignment_add
+      jq -n -c -M --arg msg "$output" '{changed: true, msg: $msg}'
+      exit 0
+    else
+      jq -n -c -M --arg msg "$output" '{changed: false, msg: $msg}'
+      exit 0
+    fi
+  else
+    project_assignment_list
+    if [ -z "$(echo "$output" | grep -F "$name")" ]; then
+      project_assignment_add
+      jq -n -c -M --arg msg "$output" '{changed: true, msg: $msg}'
+      exit 0
+    else
+      jq -n -c -M --arg msg "$output" '{changed: false, msg: $msg}'
+      exit 0
+    fi
+  fi
+  ;;
+
+  removed )
+  if [ -z "$user" ] && [ "$state" == "added" -o "$state" == "removed" ]; then
+    jq -n -c -M '{failed: true, msg: "missing required arguments: user"}'
+    exit 1
+  fi
+  if [ -z "$project" ]; then
+    domain_assignment_list
+    if [ -z "$(echo "$output" | grep -F "$name")" ]; then
+      jq -n -c -M --arg msg "$output" '{changed: false, msg: $msg}'
+      exit 0
+    else
+      domain_assignment_remove
+      jq -n -c -M --arg msg "$output" '{changed: true, msg: $msg}'
+      exit 0
+    fi
+  else
+    domain_assignment_list
+    if [ -z "$(echo "$output" | grep -F "$name")" ]; then
+      jq -n -c -M --arg msg "$output" '{changed: false, msg: $msg}'
+      exit 0
+    else
+      domain_assignment_remove
+      jq -n -c -M --arg msg "$output" '{changed: true, msg: $msg}'
+      exit 0
+    fi
+  fi
+  ;;
+
+  * )
+  jq -n -c -M --arg msg "invalid state: $state" '{failed: true, msg: $msg}'
+  exit 1
+  ;;
+esac

@@ -1,0 +1,24 @@
+---
+
+- name: restart mariadb service
+  service:
+    name: mysql
+    state: restarted
+
+- name: create foreman database
+  command: /usr/sbin/foreman-rake db:migrate
+
+- name: seed foreman database
+  command: /usr/sbin/foreman-rake db:seed
+
+- name: update foreman apipie cache
+  command: /usr/sbin/foreman-rake apipie:cache
+
+- name: set foreman admin password
+  command: /usr/sbin/foreman-rake permissions:reset username={{ foreman_admin_user }} password="{{ foreman_admin_password }}"
+
+- name: restart foreman service
+  service:
+    name: foreman
+    state: restarted
+

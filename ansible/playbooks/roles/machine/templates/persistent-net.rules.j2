@@ -1,0 +1,22 @@
+# {{ ansible_managed }}
+
+# rename network interfaces
+ACTION=="add", ATTR{address}=="{{ management_macaddress }}", ENV{DEVTYPE}!="vlan", ENV{DEVTYPE}!="bridge", NAME="eth-management"
+{% if access_macaddress is defined %}
+ACTION=="add", ATTR{address}=="{{ access_macaddress }}", ENV{DEVTYPE}!="vlan", ENV{DEVTYPE}!="bridge", NAME="eth-access"
+{% endif %}
+{% if external_macaddress is defined %}
+ACTION=="add", ATTR{address}=="{{ external_macaddress }}", ENV{DEVTYPE}!="vlan", ENV{DEVTYPE}!="bridge", NAME="eth-external"
+{% endif %}
+{% if data_macaddress is defined %}
+ACTION=="add", ATTR{address}=="{{ data_macaddress }}", ENV{DEVTYPE}!="vlan", ENV{DEVTYPE}!="bridge", NAME="eth-data"
+{% endif %}
+{% if storage_macaddress is defined %}
+ACTION=="add", ATTR{address}=="{{ storage_macaddress }}", ENV{DEVTYPE}!="vlan", ENV{DEVTYPE}!="bridge", NAME="eth-storage"
+{% endif %}
+{% if replication_macaddress is defined %}
+ACTION=="add", ATTR{address}=="{{ replication_macaddress }}", ENV{DEVTYPE}!="vlan", ENV{DEVTYPE}!="bridge", NAME="eth-replication"
+{% endif %}
+{% if security_macaddress is defined %}
+ACTION=="add", ATTR{address}=="{{ security_macaddress }}", ENV{DEVTYPE}!="vlan", ENV{DEVTYPE}!="bridge", NAME="eth-security"
+{% endif %}

@@ -1,0 +1,13 @@
+DEVICE=eth-management
+NAME=eth-management
+TYPE=Ethernet
+NM_CONTROLLED=no
+ONBOOT=yes
+BOOTPROTO=static
+{% for nic in machine.nics %}
+{% if nic.network == 'management' %}
+IPADDR={{ nic.ipaddress }}
+{% endif %}
+{% endfor %}
+NETMASK={{ management_netmask }}
+GATEWAY={{ management_gateway }}

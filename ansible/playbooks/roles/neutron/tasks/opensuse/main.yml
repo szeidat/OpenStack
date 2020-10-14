@@ -1,0 +1,41 @@
+---
+
+- name: install software packages
+  zypper:
+    name: "{{ item }}"
+    state: latest
+  with_items:
+  - openstack-neutron-server
+  - openstack-neutron-vsphere
+  notify:
+  - sync neutron database
+
+- name: update default plugin link
+  file:
+    src: /etc/neutron/plugins/ml2/ml2_conf.ini
+    dest: /etc/neutron/plugin.ini
+    state: link
+    force: yes
+
+- name: update neutron config
+  template:
+    src: neutron.conf.j2
+    dest: /etc/neutron/neutron.conf
+  notify:
+  - restart openstack-neutron service
+
+- name: update ml2 plugin config
+  template:
+    src: ml2_conf.ini.j2
+    dest: /etc/neutron/plugins/ml2/ml2_conf.ini
+  notify:
+  - restart openstack-neutron service
+
+- name: enable openstack-neutron service
+  service:
+    name: openstack-neutron
+    enabled: yes
+
+- name: run queued handlers
+  meta:
+    flush_handlers

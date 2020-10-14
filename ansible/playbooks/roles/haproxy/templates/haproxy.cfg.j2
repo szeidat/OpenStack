@@ -1,0 +1,352 @@
+# {{ ansible_managed }}
+
+global
+    log /dev/log local0
+    chroot /var/lib/haproxy
+    stats socket /var/lib/haproxy/stats
+    stats timeout 30s
+    user haproxy
+    group haproxy
+    daemon
+    ssl-default-bind-options no-sslv3
+    ssl-default-server-options no-sslv3
+    tune.ssl.default-dh-param 2048
+
+defaults
+    log global
+    balance source
+    option redispatch
+    option tcpka
+    retries 3
+    timeout http-request 10s
+    timeout check 10s
+    timeout client 1m
+    timeout connect 10s
+    timeout queue 1m
+    timeout server 1m
+
+listen haproxy-internal
+    bind {{ stack_management_ipaddress }}:{{ haproxy_stats_port }}{% if stack_ssl_enabled %} ssl crt /etc/haproxy/internal.crt{% endif %}
+
+    mode http
+    stats enable
+    stats refresh 15s
+    stats uri /
+    stats realm HAProxy\ Stats
+    stats auth {{ haproxy_stats_user }}:{{ haproxy_stats_password }}
+
+listen mariadb-internal
+    bind {{ stack_management_ipaddress }}:3306
+    mode tcp
+{% for host in groups['database-messaging'] %}
+    server {{ host }} {{ hostvars[host]['management_ipaddress'] }}:3306 check inter 2000 rise 2 fall 5
+{% endfor %}
+
+listen rabbitmq-internal
+    bind {{ stack_management_ipaddress }}:5672
+    mode tcp
+    timeout client 0
+    timeout server 0
+{% for host in groups['database-messaging'] %}
+    server {{ host }} {{ hostvars[host]['management_ipaddress'] }}:5672 check inter 2000 rise 2 fall 5
+{% endfor %}
+
+listen keystoneadmin-internal
+    bind {{ stack_management_ipaddress }}:35357{% if stack_ssl_enabled %} ssl crt /etc/haproxy/internal.crt{% endif %}
+
+    mode http
+    option forwardfor
+    http-request set-header X-Forwarded-Proto https if { ssl_fc }
+{% for host in groups['cloud-controller'] %}
+    server {{ host }} {{ hostvars[host]['management_ipaddress'] }}:35357 check inter 2000 rise 2 fall 5
+{% endfor %}
+
+listen keystoneapi-internal
+    bind {{ stack_management_ipaddress }}:5000{% if stack_ssl_enabled %} ssl crt /etc/haproxy/internal.crt{% endif %}
+
+    mode http
+    option forwardfor
+    http-request set-header X-Forwarded-Proto https if { ssl_fc }
+{% for host in groups['cloud-controller'] %}
+    server {{ host }} {{ hostvars[host]['management_ipaddress'] }}:5000 check inter 2000 rise 2 fall 5
+{% endfor %}
+
+listen keystoneapi-external
+    bind {{ stack_access_ipaddress }}:5000{% if stack_ssl_enabled %} ssl crt /etc/haproxy/external.crt{% endif %}
+
+    mode http
+    option forwardfor
+    http-request set-header X-Forwarded-Proto https if { ssl_fc }
+{% for host in groups['cloud-controller'] %}
+    server {{ host }} {{ hostvars[host]['management_ipaddress'] }}:5000 check inter 2000 rise 2 fall 5
+{% endfor %}
+
+listen glanceapi-internal
+    bind {{ stack_management_ipaddress }}:9292{% if stack_ssl_enabled %} ssl crt /etc/haproxy/internal.crt{% endif %}
+
+    mode http
+    option forwardfor
+    http-request set-header X-Forwarded-Proto https if { ssl_fc }
+{% for host in groups['cloud-controller'] %}
+    server {{ host }} {{ hostvars[host]['management_ipaddress'] }}:9292 check inter 2000 rise 2 fall 5
+{% endfor %}
+
+listen glanceapi-external
+    bind {{ stack_access_ipaddress }}:9292{% if stack_ssl_enabled %} ssl crt /etc/haproxy/external.crt{% endif %}
+
+    mode http
+    option forwardfor
+    http-request set-header X-Forwarded-Proto https if { ssl_fc }
+{% for host in groups['cloud-controller'] %}
+    server {{ host }} {{ hostvars[host]['management_ipaddress'] }}:9292 check inter 2000 rise 2 fall 5
+{% endfor %}
+
+listen glanceregistry-internal
+    bind {{ stack_management_ipaddress }}:9191
+
+    mode http
+    option forwardfor
+    http-request set-header X-Forwarded-Proto https if { ssl_fc }
+{% for host in groups['cloud-controller'] %}
+    server {{ host }} {{ hostvars[host]['management_ipaddress'] }}:9191 check inter 2000 rise 2 fall 5
+{% endfor %}
+
+listen novaapi-internal
+    bind {{ stack_management_ipaddress }}:8774{% if stack_ssl_enabled %} ssl crt /etc/haproxy/internal.crt{% endif %}
+
+    mode http
+    option forwardfor
+    http-request set-header X-Forwarded-Proto https if { ssl_fc }
+{% for host in groups['cloud-controller'] %}
+    server {{ host }} {{ hostvars[host]['management_ipaddress'] }}:8774 check inter 2000 rise 2 fall 5
+{% endfor %}
+
+listen novaapi-external
+    bind {{ stack_access_ipaddress }}:8774{% if stack_ssl_enabled %} ssl crt /etc/haproxy/external.crt{% endif %}
+
+    mode http
+    option forwardfor
+    http-request set-header X-Forwarded-Proto https if { ssl_fc }
+{% for host in groups['cloud-controller'] %}
+    server {{ host }} {{ hostvars[host]['management_ipaddress'] }}:8774 check inter 2000 rise 2 fall 5
+{% endfor %}
+
+listen novametadata-internal
+    bind {{ stack_management_ipaddress }}:8775{% if stack_ssl_enabled %} ssl crt /etc/haproxy/internal.crt{% endif %}
+
+    mode http
+    option forwardfor
+    http-request set-header X-Forwarded-Proto https if { ssl_fc }
+{% for host in groups['cloud-controller'] %}
+    server {{ host }} {{ hostvars[host]['management_ipaddress'] }}:8775 check inter 2000 rise 2 fall 5
+{% endfor %}
+
+listen novametadata-external
+    bind {{ stack_access_ipaddress }}:8775{% if stack_ssl_enabled %} ssl crt /etc/haproxy/external.crt{% endif %}
+
+    mode http
+    option forwardfor
+    http-request set-header X-Forwarded-Proto https if { ssl_fc }
+{% for host in groups['cloud-controller'] %}
+    server {{ host }} {{ hostvars[host]['management_ipaddress'] }}:8775 check inter 2000 rise 2 fall 5
+{% endfor %}
+
+listen novavncproxy-internal
+    bind {{ stack_management_ipaddress }}:6080{% if stack_ssl_enabled %} ssl crt /etc/haproxy/internal.crt{% endif %}
+
+    mode http
+    option forwardfor
+    http-request set-header X-Forwarded-Proto https if { ssl_fc }
+{% for host in groups['cloud-controller'] %}
+    server {{ host }} {{ hostvars[host]['management_ipaddress'] }}:6080 check inter 2000 rise 2 fall 5
+{% endfor %}
+
+listen novavncproxy-external
+    bind {{ stack_access_ipaddress }}:6080{% if stack_ssl_enabled %} ssl crt /etc/haproxy/external.crt{% endif %}
+
+    mode http
+    option forwardfor
+    http-request set-header X-Forwarded-Proto https if { ssl_fc }
+{% for host in groups['cloud-controller'] %}
+    server {{ host }} {{ hostvars[host]['management_ipaddress'] }}:6080 check inter 2000 rise 2 fall 5
+{% endfor %}
+
+listen neutronapi-internal
+    bind {{ stack_management_ipaddress }}:9696{% if stack_ssl_enabled %} ssl crt /etc/haproxy/internal.crt{% endif %}
+
+    mode http
+    option forwardfor
+    http-request set-header X-Forwarded-Proto https if { ssl_fc }
+{% for host in groups['cloud-controller'] %}
+    server {{ host }} {{ hostvars[host]['management_ipaddress'] }}:9696 check inter 2000 rise 2 fall 5
+{% endfor %}
+
+listen neutronapi-external
+    bind {{ stack_access_ipaddress }}:9696{% if stack_ssl_enabled %} ssl crt /etc/haproxy/external.crt{% endif %}
+
+    mode http
+    option forwardfor
+    http-request set-header X-Forwarded-Proto https if { ssl_fc }
+{% for host in groups['cloud-controller'] %}
+    server {{ host }} {{ hostvars[host]['management_ipaddress'] }}:9696 check inter 2000 rise 2 fall 5
+{% endfor %}
+
+listen horizon-internal
+    bind {{ stack_management_ipaddress }}:{{ horizon_web_port }}{% if stack_ssl_enabled %} ssl crt /etc/haproxy/internal.crt{% endif %}
+
+    mode http
+    option forwardfor
+    http-request set-header X-Forwarded-Proto https if { ssl_fc }
+{% for host in groups['cloud-controller'] %}
+    server {{ host }} {{ hostvars[host]['management_ipaddress'] }}:{{ horizon_web_port }} check inter 2000 rise 2 fall 5
+{% endfor %}
+
+listen horizon-external
+    bind {{ stack_access_ipaddress }}:{{ horizon_web_port }}{% if stack_ssl_enabled %} ssl crt /etc/haproxy/external.crt{% endif %}
+
+    mode http
+    option forwardfor
+    http-request set-header X-Forwarded-Proto https if { ssl_fc }
+{% for host in groups['cloud-controller'] %}
+    server {{ host }} {{ hostvars[host]['management_ipaddress'] }}:{{ horizon_web_port }} check inter 2000 rise 2 fall 5
+{% endfor %}
+
+listen swiftapi-internal
+    bind {{ stack_management_ipaddress }}:8080{% if stack_ssl_enabled %} ssl crt /etc/haproxy/internal.crt{% endif %}
+
+    mode http
+    option forwardfor
+    http-request set-header X-Forwarded-Proto https if { ssl_fc }
+{% for host in groups['cloud-controller'] %}
+    server {{ host }} {{ hostvars[host]['management_ipaddress'] }}:8080 check inter 2000 rise 2 fall 5
+{% endfor %}
+
+listen swiftapi-external
+    bind {{ stack_access_ipaddress }}:8080{% if stack_ssl_enabled %} ssl crt /etc/haproxy/external.crt{% endif %}
+
+    mode http
+    option forwardfor
+    http-request set-header X-Forwarded-Proto https if { ssl_fc }
+{% for host in groups['cloud-controller'] %}
+    server {{ host }} {{ hostvars[host]['management_ipaddress'] }}:8080 check inter 2000 rise 2 fall 5
+{% endfor %}
+
+listen cinderapi-internal
+    bind {{ stack_management_ipaddress }}:8776{% if stack_ssl_enabled %} ssl crt /etc/haproxy/internal.crt{% endif %}
+
+    mode http
+    option forwardfor
+    http-request set-header X-Forwarded-Proto https if { ssl_fc }
+{% for host in groups['cloud-controller'] %}
+    server {{ host }} {{ hostvars[host]['management_ipaddress'] }}:8776 check inter 2000 rise 2 fall 5
+{% endfor %}
+
+listen cinderapi-external
+    bind {{ stack_access_ipaddress }}:8776{% if stack_ssl_enabled %} ssl crt /etc/haproxy/external.crt{% endif %}
+
+    mode http
+    option forwardfor
+    http-request set-header X-Forwarded-Proto https if { ssl_fc }
+{% for host in groups['cloud-controller'] %}
+    server {{ host }} {{ hostvars[host]['management_ipaddress'] }}:8776 check inter 2000 rise 2 fall 5
+{% endfor %}
+
+listen manilaapi-internal
+    bind {{ stack_management_ipaddress }}:8786{% if stack_ssl_enabled %} ssl crt /etc/haproxy/internal.crt{% endif %}
+
+    mode http
+    option forwardfor
+    http-request set-header X-Forwarded-Proto https if { ssl_fc }
+{% for host in groups['cloud-controller'] %}
+    server {{ host }} {{ hostvars[host]['management_ipaddress'] }}:8786 check inter 2000 rise 2 fall 5
+{% endfor %}
+
+listen manilaapi-external
+    bind {{ stack_access_ipaddress }}:8786{% if stack_ssl_enabled %} ssl crt /etc/haproxy/external.crt{% endif %}
+
+    mode http
+    option forwardfor
+    http-request set-header X-Forwarded-Proto https if { ssl_fc }
+{% for host in groups['cloud-controller'] %}
+    server {{ host }} {{ hostvars[host]['management_ipaddress'] }}:8786 check inter 2000 rise 2 fall 5
+{% endfor %}
+
+listen heatapi-internal
+    bind {{ stack_management_ipaddress }}:8004{% if stack_ssl_enabled %} ssl crt /etc/haproxy/internal.crt{% endif %}
+
+    mode http
+    option forwardfor
+    http-request set-header X-Forwarded-Proto https if { ssl_fc }
+{% for host in groups['cloud-controller'] %}
+    server {{ host }} {{ hostvars[host]['management_ipaddress'] }}:8004 check inter 2000 rise 2 fall 5
+{% endfor %}
+
+listen heatapi-external
+    bind {{ stack_access_ipaddress }}:8004{% if stack_ssl_enabled %} ssl crt /etc/haproxy/external.crt{% endif %}
+
+    mode http
+    option forwardfor
+    http-request set-header X-Forwarded-Proto https if { ssl_fc }
+{% for host in groups['cloud-controller'] %}
+    server {{ host }} {{ hostvars[host]['management_ipaddress'] }}:8004 check inter 2000 rise 2 fall 5
+{% endfor %}
+
+listen heatcfn-internal
+    bind {{ stack_management_ipaddress }}:8000{% if stack_ssl_enabled %} ssl crt /etc/haproxy/internal.crt{% endif %}
+
+    mode http
+    option forwardfor
+    http-request set-header X-Forwarded-Proto https if { ssl_fc }
+{% for host in groups['cloud-controller'] %}
+    server {{ host }} {{ hostvars[host]['management_ipaddress'] }}:8000 check inter 2000 rise 2 fall 5
+{% endfor %}
+
+listen heatcfn-external
+    bind {{ stack_access_ipaddress }}:8000{% if stack_ssl_enabled %} ssl crt /etc/haproxy/external.crt{% endif %}
+
+    mode http
+    option forwardfor
+    http-request set-header X-Forwarded-Proto https if { ssl_fc }
+{% for host in groups['cloud-controller'] %}
+    server {{ host }} {{ hostvars[host]['management_ipaddress'] }}:8000 check inter 2000 rise 2 fall 5
+{% endfor %}
+
+listen magnumapi-internal
+    bind {{ stack_management_ipaddress }}:9511{% if stack_ssl_enabled %} ssl crt /etc/haproxy/internal.crt{% endif %}
+
+    mode http
+    option forwardfor
+    http-request set-header X-Forwarded-Proto https if { ssl_fc }
+{% for host in groups['cloud-controller'] %}
+    server {{ host }} {{ hostvars[host]['management_ipaddress'] }}:9511 check inter 2000 rise 2 fall 5
+{% endfor %}
+
+listen magnumapi-external
+    bind {{ stack_access_ipaddress }}:9511{% if stack_ssl_enabled %} ssl crt /etc/haproxy/external.crt{% endif %}
+
+    mode http
+    option forwardfor
+    http-request set-header X-Forwarded-Proto https if { ssl_fc }
+{% for host in groups['cloud-controller'] %}
+    server {{ host }} {{ hostvars[host]['management_ipaddress'] }}:9511 check inter 2000 rise 2 fall 5
+{% endfor %}
+
+listen troveapi-internal
+    bind {{ stack_management_ipaddress }}:8779{% if stack_ssl_enabled %} ssl crt /etc/haproxy/internal.crt{% endif %}
+
+    mode http
+    option forwardfor
+    http-request set-header X-Forwarded-Proto https if { ssl_fc }
+{% for host in groups['cloud-controller'] %}
+    server {{ host }} {{ hostvars[host]['management_ipaddress'] }}:8779 check inter 2000 rise 2 fall 5
+{% endfor %}
+
+listen troveapi-external
+    bind {{ stack_access_ipaddress }}:8779{% if stack_ssl_enabled %} ssl crt /etc/haproxy/external.crt{% endif %}
+
+    mode http
+    option forwardfor
+    http-request set-header X-Forwarded-Proto https if { ssl_fc }
+{% for host in groups['cloud-controller'] %}
+    server {{ host }} {{ hostvars[host]['management_ipaddress'] }}:8779 check inter 2000 rise 2 fall 5
+{% endfor %}

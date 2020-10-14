@@ -1,0 +1,93 @@
+---
+
+- name: install software packages
+  zypper:
+    name: "{{ item }}"
+    state: latest
+  with_items:
+  - openstack-neutron-openvswitch-agent
+  - openstack-manila-share
+
+- name: update default plugin link
+  file:
+    src: /etc/neutron/plugins/ml2/ml2_conf.ini
+    dest: /etc/neutron/plugin.ini
+    state: link
+    force: yes
+
+- name: copy manila ssh private key
+  copy:
+    src: id_rsa
+    dest: /etc/manila/id_rsa
+    owner: manila
+    group: manila
+
+- name: copy manila ssh public key
+  copy:
+    src: id_rsa.pub
+    dest: /etc/manila/id_rsa.pub
+    owner: manila
+    group: manila
+
+- name: start openvswitch service
+  service:
+    name: openvswitch
+    state: started
+
+- name: create data bridge
+  openvswitch_bridge:
+    bridge: br-dat
+    state: present
+
+- name: add data bridge interface
+  openvswitch_port:
+    bridge: br-dat
+    port: eth-data
+    state: present
+
+- name: update neutron config
+  template:
+    src: neutron.conf.j2
+    dest: /etc/neutron/neutron.conf
+  notify:
+  - restart openstack-neutron-openvswitch-agent service
+
+- name: update ml2 plugin config
+  template:
+    src: ml2_conf.ini.j2
+    dest: /etc/neutron/plugins/ml2/ml2_conf.ini
+  notify:
+  - restart openstack-neutron-openvswitch-agent service
+
+- name: update openvswitch agent config
+  template:
+    src: openvswitch_agent.ini.j2
+    dest: /etc/neutron/plugins/ml2/openvswitch_agent.ini
+  notify:
+  - restart openstack-neutron-openvswitch-agent service
+
+- name: update manila config
+  template:
+    src: manila.conf.j2
+    dest: /etc/manila/manila.conf
+  notify:
+  - restart openstack-manila-share service
+
+- name: enable openvswitch service
+  service:
+    name: openvswitch
+    enabled: yes
+
+- name: enable openstack-neutron-openvswitch-agent service
+  service:
+    name: openstack-neutron-openvswitch-agent
+    enabled: yes
+
+- name: enable openstack-manila-share service
+  service:
+    name: openstack-manila-share
+    enabled: yes
+
+- name: run queued handlers
+  meta:
+    flush_handlers

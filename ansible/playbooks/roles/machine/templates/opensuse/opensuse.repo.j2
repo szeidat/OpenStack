@@ -1,0 +1,37 @@
+# {{ ansible_managed }}
+
+[repo-oss]
+name=openSUSE-Leap-42.2-Oss
+enabled=1
+autorefresh=1
+baseurl=http://{{ apt_cache_server }}:{{ apt_cache_port }}/download.opensuse.org/distribution/leap/42.2/repo/oss/
+path=/
+type=yast2
+keeppackages=0
+
+[repo-update]
+name=openSUSE-Leap-42.2-Update
+enabled=1
+autorefresh=1
+baseurl=http://{{ apt_cache_server }}:{{ apt_cache_port }}/download.opensuse.org/update/leap/42.2/oss/
+path=/
+type=rpm-md
+keeppackages=0
+
+[repo-non-oss]
+name=openSUSE-Leap-42.2-Non-Oss
+enabled=1
+autorefresh=1
+baseurl=http://{{ apt_cache_server }}:{{ apt_cache_port }}/download.opensuse.org/distribution/leap/42.2/repo/non-oss/
+path=/
+type=yast2
+keeppackages=0
+
+[repo-update-non-oss]
+name=openSUSE-Leap-42.2-Update-Non-Oss
+enabled=1
+autorefresh=1
+baseurl=http://{{ apt_cache_server }}:{{ apt_cache_port }}/download.opensuse.org/update/leap/42.2/non-oss/
+path=/
+type=rpm-md
+keeppackages=0

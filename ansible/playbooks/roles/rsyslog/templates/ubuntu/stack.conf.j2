@@ -1,0 +1,422 @@
+# {{ ansible_managed }}
+
+$ModLoad imfile
+{% if 'keystone' in role_names %}
+#########################################
+### keystone                          ###
+#########################################
+$InputFileTag keystone.log
+$InputFileName /var/log/keystone/keystone.log
+$InputFileSeverity debug
+$InputFileFacility local3
+$InputRunFileMonitor
+
+#########################################
+### keystone-wsgi                     ###
+#########################################
+$InputFileTag keystone-wsgi.log
+$InputFileName /var/log/apache2/keystone.log
+$InputFileSeverity debug
+$InputFileFacility local3
+$InputRunFileMonitor
+
+#########################################
+### keystone-wsgi-access              ###
+#########################################
+$InputFileTag keystone-wsgi-access.log
+$InputFileName /var/log/apache2/keystone-access.log
+$InputFileSeverity debug
+$InputFileFacility local3
+$InputRunFileMonitor
+{% endif -%}
+
+{% if 'glance' in role_names %}
+#########################################
+### glance-api                        ###
+#########################################
+$InputFileTag glance-api.log
+$InputFileName /var/log/glance/glance-api.log
+$InputFileSeverity debug
+$InputFileFacility local3
+$InputRunFileMonitor
+
+#########################################
+### glance-registry                   ###
+#########################################
+$InputFileTag glance-registry.log
+$InputFileName /var/log/glance/glance-registry.log
+$InputFileSeverity debug
+$InputFileFacility local3
+$InputRunFileMonitor
+{% endif -%}
+
+{% if 'nova' in role_names %}
+#########################################
+### nova-api                          ###
+#########################################
+$InputFileTag nova-api.log
+$InputFileName /var/log/nova/nova-api.log
+$InputFileSeverity debug
+$InputFileFacility local3
+$InputRunFileMonitor
+
+#########################################
+### nova-conductor                    ###
+#########################################
+$InputFileTag nova-conductor.log
+$InputFileName /var/log/nova/nova-conductor.log
+$InputFileSeverity debug
+$InputFileFacility local3
+$InputRunFileMonitor
+
+#########################################
+### nova-consoleauth                  ###
+#########################################
+$InputFileTag nova-consoleauth.log
+$InputFileName /var/log/nova/nova-consoleauth.log
+$InputFileSeverity debug
+$InputFileFacility local3
+$InputRunFileMonitor
+
+#########################################
+### nova-novncproxy                   ###
+#########################################
+$InputFileTag nova-novncproxy.log
+$InputFileName /var/log/nova/nova-novncproxy.log
+$InputFileSeverity debug
+$InputFileFacility local3
+$InputRunFileMonitor
+
+#########################################
+### nova-scheduler                    ###
+#########################################
+$InputFileTag nova-scheduler.log
+$InputFileName /var/log/nova/nova-scheduler.log
+$InputFileSeverity debug
+$InputFileFacility local3
+$InputRunFileMonitor
+{% endif -%}
+
+{% if 'nova-compute' in role_names %}
+#########################################
+### nova-compute                      ###
+#########################################
+$InputFileTag nova-compute.log
+$InputFileName /var/log/nova/nova-compute.log
+$InputFileSeverity debug
+$InputFileFacility local3
+$InputRunFileMonitor
+{% endif -%}
+
+{% if 'nova-compute' in role_names and neutron_networking_type == 'linuxbridge' %}
+#########################################
+### neutron-linuxbridge-agent         ###
+#########################################
+$InputFileTag neutron-linuxbridge-agent.log
+$InputFileName /var/log/neutron/neutron-linuxbridge-agent.log
+$InputFileSeverity debug
+$InputFileFacility local3
+$InputRunFileMonitor
+{% endif -%}
+
+{% if 'nova-compute' in role_names and neutron_networking_type == 'openvswitch' %}
+#########################################
+### neutron-openvswitch-agent         ###
+#########################################
+$InputFileTag neutron-openvswitch-agent.log
+$InputFileName /var/log/neutron/neutron-openvswitch-agent.log
+$InputFileSeverity debug
+$InputFileFacility local3
+$InputRunFileMonitor
+{% endif -%}
+
+{% if 'nova-compute' in role_names and neutron_networking_type == 'dvs' %}
+#########################################
+### neutron-dvs-agent                 ###
+#########################################
+$InputFileTag neutron-dvs-agent.log
+$InputFileName /var/log/neutron/dvs-agent.log
+$InputFileSeverity debug
+$InputFileFacility local3
+$InputRunFileMonitor
+{% endif -%}
+
+{% if 'nova-compute' in role_names and neutron_networking_type == 'ovsvapp' %}
+#########################################
+### neutron-ovsvapp-agent             ###
+#########################################
+$InputFileTag neutron-ovsvapp-agent.log
+$InputFileName /var/log/neutron/ovsvapp-agent.log
+$InputFileSeverity debug
+$InputFileFacility local3
+$InputRunFileMonitor
+{% endif -%}
+
+{% if 'neutron' in role_names %}
+#########################################
+### neutron-server                    ###
+#########################################
+$InputFileTag neutron-server.log
+$InputFileName /var/log/neutron/neutron-server.log
+$InputFileSeverity debug
+$InputFileFacility local3
+$InputRunFileMonitor
+{% endif -%}
+
+{% if 'neutron-gateway' in role_names %}
+#########################################
+### neutron-dhcp-agent                ###
+#########################################
+$InputFileTag neutron-dhcp-agent.log
+$InputFileName /var/log/neutron/neutron-dhcp-agent.log
+$InputFileSeverity debug
+$InputFileFacility local3
+$InputRunFileMonitor
+{% endif -%}
+
+{% if 'neutron-gateway' in role_names %}
+#########################################
+### neutron-metadata-agent            ###
+#########################################
+$InputFileTag neutron-metadata-agent.log
+$InputFileName /var/log/neutron/neutron-metadata-agent.log
+$InputFileSeverity debug
+$InputFileFacility local3
+$InputRunFileMonitor
+{% endif -%}
+
+{% if 'neutron-gateway' in role_names %}
+#########################################
+### neutron-l3-agent                  ###
+#########################################
+$InputFileTag neutron-l3-agent.log
+$InputFileName /var/log/neutron/neutron-l3-agent.log
+$InputFileSeverity debug
+$InputFileFacility local3
+$InputRunFileMonitor
+{% endif -%}
+
+{% if 'neutron-gateway' in role_names and neutron_networking_type == 'linuxbridge' %}
+#########################################
+### neutron-linuxbridge-agent         ###
+#########################################
+$InputFileTag neutron-linuxbridge-agent.log
+$InputFileName /var/log/neutron/neutron-linuxbridge-agent.log
+$InputFileSeverity debug
+$InputFileFacility local3
+$InputRunFileMonitor
+{% endif -%}
+
+{% if 'neutron-gateway' in role_names and neutron_networking_type == 'openvswitch' %}
+#########################################
+### neutron-openvswitch-agent         ###
+#########################################
+$InputFileTag neutron-openvswitch-agent.log
+$InputFileName /var/log/neutron/neutron-openvswitch-agent.log
+$InputFileSeverity debug
+$InputFileFacility local3
+$InputRunFileMonitor
+{% endif -%}
+
+{% if 'horizon' in role_names %}
+#########################################
+### horizon                           ###
+#########################################
+$InputFileTag horizon.log
+$InputFileName /var/log/horizon/horizon.log
+$InputFileSeverity debug
+$InputFileFacility local3
+$InputRunFileMonitor
+
+#########################################
+### horizon-access                    ###
+#########################################
+$InputFileTag horizon-access.log
+$InputFileName /var/log/horizon/horizon-access.log
+$InputFileSeverity debug
+$InputFileFacility local3
+$InputRunFileMonitor
+{% endif -%}
+
+{% if 'cinder' in role_names %}
+#########################################
+### cinder-api                        ###
+#########################################
+$InputFileTag cinder-api.log
+$InputFileName /var/log/cinder/cinder-api.log
+$InputFileSeverity debug
+$InputFileFacility local3
+$InputRunFileMonitor
+
+#########################################
+### cinder-scheduler                  ###
+#########################################
+$InputFileTag cinder-scheduler.log
+$InputFileName /var/log/cinder/cinder-scheduler.log
+$InputFileSeverity debug
+$InputFileFacility local3
+$InputRunFileMonitor
+{% endif -%}
+
+{% if 'cinder-volume' in role_names %}
+#########################################
+### cinder-volume                     ###
+#########################################
+$InputFileTag cinder-volume.log
+$InputFileName /var/log/cinder/cinder-volume.log
+$InputFileSeverity debug
+$InputFileFacility local3
+$InputRunFileMonitor
+
+#########################################
+### cinder-backup                     ###
+#########################################
+$InputFileTag cinder-backup.log
+$InputFileName /var/log/cinder/cinder-backup.log
+$InputFileSeverity debug
+$InputFileFacility local3
+$InputRunFileMonitor
+{% endif -%}
+
+{% if 'manila' in role_names %}
+#########################################
+### manila-api                        ###
+#########################################
+$InputFileTag manila-api.log
+$InputFileName /var/log/manila/manila-api.log
+$InputFileSeverity debug
+$InputFileFacility local3
+$InputRunFileMonitor
+
+#########################################
+### manila-scheduler                  ###
+#########################################
+$InputFileTag manila-scheduler.log
+$InputFileName /var/log/manila/manila-scheduler.log
+$InputFileSeverity debug
+$InputFileFacility local3
+$InputRunFileMonitor
+{% endif -%}
+
+{% if 'manila-share' in role_names %}
+#########################################
+### manila-share                      ###
+#########################################
+$InputFileTag manila-share.log
+$InputFileName /var/log/manila/manila-share.log
+$InputFileSeverity debug
+$InputFileFacility local3
+$InputRunFileMonitor
+{% endif -%}
+
+{% if 'manila-share' in role_names and neutron_networking_type == 'linuxbridge' %}
+#########################################
+### neutron-linuxbridge-agent         ###
+#########################################
+$InputFileTag neutron-linuxbridge-agent.log
+$InputFileName /var/log/neutron/neutron-linuxbridge-agent.log
+$InputFileSeverity debug
+$InputFileFacility local3
+$InputRunFileMonitor
+{% endif -%}
+
+{% if 'manila-share' in role_names and neutron_networking_type == 'openvswitch' %}
+#########################################
+### neutron-openvswitch-agent         ###
+#########################################
+$InputFileTag neutron-openvswitch-agent.log
+$InputFileName /var/log/neutron/neutron-openvswitch-agent.log
+$InputFileSeverity debug
+$InputFileFacility local3
+$InputRunFileMonitor
+{% endif -%}
+
+{% if 'heat' in role_names %}
+#########################################
+### heat-api                          ###
+#########################################
+$InputFileTag heat-api.log
+$InputFileName /var/log/heat/heat-api.log
+$InputFileSeverity debug
+$InputFileFacility local3
+$InputRunFileMonitor
+
+#########################################
+### heat-api-cfn                      ###
+#########################################
+$InputFileTag heat-api-cfn.log
+$InputFileName /var/log/heat/heat-api-cfn.log
+$InputFileSeverity debug
+$InputFileFacility local3
+$InputRunFileMonitor
+
+#########################################
+### heat-engine                       ###
+#########################################
+$InputFileTag heat-engine.log
+$InputFileName /var/log/heat/heat-engine.log
+$InputFileSeverity debug
+$InputFileFacility local3
+$InputRunFileMonitor
+{% endif -%}
+
+{% if 'magnum' in role_names %}
+#########################################
+### magnum-api                        ###
+#########################################
+$InputFileTag magnum-api.log
+$InputFileName /var/log/magnum/magnum-api.log
+$InputFileSeverity debug
+$InputFileFacility local3
+$InputRunFileMonitor
+
+#########################################
+### magnum-conductor                  ###
+#########################################
+$InputFileTag magnum-conductor.log
+$InputFileName /var/log/magnum/magnum-conductor.log
+$InputFileSeverity debug
+$InputFileFacility local3
+$InputRunFileMonitor
+{% endif -%}
+
+{% if 'trove' in role_names %}
+#########################################
+### trove-api                         ###
+#########################################
+$InputFileTag trove-api.log
+$InputFileName /var/log/trove/trove-api.log
+$InputFileSeverity debug
+$InputFileFacility local3
+$InputRunFileMonitor
+
+#########################################
+### trove-conductor                   ###
+#########################################
+$InputFileTag trove-conductor.log
+$InputFileName /var/log/trove/trove-conductor.log
+$InputFileSeverity debug
+$InputFileFacility local3
+$InputRunFileMonitor
+
+#########################################
+### trove-taskmanager                 ###
+#########################################
+$InputFileTag trove-taskmanager.log
+$InputFileName /var/log/trove/trove-taskmanager.log
+$InputFileSeverity debug
+$InputFileFacility local3
+$InputRunFileMonitor
+{% endif -%}
+
+#########################################
+### remote                            ###
+#########################################
+$InputFilePollInterval 1
+$Template stack-template,"%HOSTNAME% %syslogtag% %msg%\n"
+{% if rsyslog_transport == 'udp' %}
+local3.* @{{ rsyslog_remote_address }}:{{ rsyslog_remote_port }};stack-template
+{% endif %}
+{% if rsyslog_transport == 'tcp' %}
+local3.* @@{{ rsyslog_remote_address }}:{{ rsyslog_remote_port }};stack-template
+{% endif %}

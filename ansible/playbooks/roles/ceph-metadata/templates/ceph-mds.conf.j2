@@ -1,0 +1,30 @@
+# {{ ansible_managed }}
+
+##################
+## Metadata servers
+# You must deploy at least one metadata server to use CephFS. There is
+# experimental support for running multiple metadata servers. Do not run
+# multiple metadata servers in production.
+[mds]
+### http://ceph.com/docs/giant/cephfs/mds-config-ref/
+
+    # where the mds keeps it's secret encryption keys
+    ;keyring                    = /var/lib/ceph/mds/$name/keyring
+
+    # Determines whether a 'ceph-mds' daemon should poll and
+    # replay the log of an active MDS (hot standby).
+    # Type:  Boolean
+    # (Default: false)
+    ;mds standby replay          = true
+
+    ; mds logging to debug issues.
+    ;debug ms                   = 1
+    ;debug mds                  = 20
+    ;debug journaler            = 20
+
+    # The number of inodes to cache.
+    # Type: 32-bit Integer
+    # (Default: 100000)
+    ;mds cache size             = 250000
+
+

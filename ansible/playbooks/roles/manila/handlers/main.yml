@@ -1,0 +1,29 @@
+---
+
+- name: sync manila database
+  command: /usr/bin/manila-manage db sync
+  become: true
+  become_method: su
+  become_user: manila
+  become_flags: '-s /bin/bash'
+  run_once: true
+
+- name: restart manila-api service
+  service:
+    name: manila-api
+    state: restarted
+
+- name: restart manila-scheduler service
+  service:
+    name: manila-scheduler
+    state: restarted
+
+- name: restart openstack-manila-api service
+  service:
+    name: openstack-manila-api
+    state: restarted
+
+- name: restart openstack-manila-scheduler service
+  service:
+    name: openstack-manila-scheduler
+    state: restarted

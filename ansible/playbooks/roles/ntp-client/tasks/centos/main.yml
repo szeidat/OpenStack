@@ -1,0 +1,32 @@
+---
+
+- name: install software packages
+  yum:
+    name: chrony
+    state: latest
+  when: ntp_timesync
+
+- name: update chrony config
+  template:
+    src: centos/chrony.conf.j2
+    dest: /etc/chrony.conf
+  when: ntp_timesync
+  notify:
+  - restart chrony service
+
+- name: enable chrony service
+  service:
+    name: chronyd
+    enabled: yes
+  when: ntp_timesync
+
+- name: run queued handlers
+  meta:
+    flush_handlers
+
+- name: update timezone
+  file:
+    src: "/usr/share/zoneinfo/{{ ntp_timezone }}"
+    dest: /etc/localtime
+    state: link
+    force: yes

@@ -1,0 +1,23 @@
+---
+
+- name: sync neutron database
+  command: >
+    /usr/bin/neutron-db-manage
+    --config-file /etc/neutron/neutron.conf
+    --config-file /etc/neutron/plugins/ml2/ml2_conf.ini
+    upgrade head
+  become: true
+  become_method: su
+  become_user: neutron
+  become_flags: '-s /bin/bash'
+  run_once: true
+
+- name: restart neutron-server service
+  service:
+    name: neutron-server
+    state: restarted
+
+- name: restart openstack-neutron service
+  service:
+    name: openstack-neutron
+    state: restarted

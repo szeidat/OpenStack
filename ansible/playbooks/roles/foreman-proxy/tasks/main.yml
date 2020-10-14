@@ -1,0 +1,67 @@
+---
+
+- name: add foreman repository key
+  apt_key:
+    data: "{{ lookup('file', 'foreman.key') }}"
+
+- name: add foreman repository
+  template:
+    src: foreman.list.j2
+    dest: /etc/apt/sources.list.d/foreman.list
+
+- name: install software packages
+  apt:
+    name: foreman-proxy
+    state: latest
+    update_cache: yes
+
+- name: update foreman-proxy settings.yml
+  template:
+    src: settings.yml.j2
+    dest: /etc/foreman-proxy/settings.yml
+  notify:
+  - restart foreman-proxy service
+
+- name: update foreman-proxy dhcp.yml
+  template:
+    src: dhcp.yml.j2
+    dest: /etc/foreman-proxy/settings.d/dhcp.yml
+  notify:
+  - restart foreman-proxy service
+
+- name: update foreman-proxy dhcp_isc.yml
+  template:
+    src: dhcp_isc.yml.j2
+    dest: /etc/foreman-proxy/settings.d/dhcp_isc.yml
+  notify:
+  - restart foreman-proxy service
+
+- name: update foreman-proxy tftp.yml
+  template:
+    src: tftp.yml.j2
+    dest: /etc/foreman-proxy/settings.d/tftp.yml
+  notify:
+  - restart foreman-proxy service
+
+- name: update foreman-proxy dns.yml
+  template:
+    src: dns.yml.j2
+    dest: /etc/foreman-proxy/settings.d/dns.yml
+  notify:
+  - restart foreman-proxy service
+
+- name: update foreman-proxy dns_nsupdate.yml
+  template:
+    src: dns_nsupdate.yml.j2
+    dest: /etc/foreman-proxy/settings.d/dns_nsupdate.yml
+  notify:
+  - restart foreman-proxy service
+
+- name: enable foreman-proxy service
+  service:
+    name: foreman-proxy
+    enabled: yes
+
+- name: run queued handlers
+  meta:
+    flush_handlers

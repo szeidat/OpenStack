@@ -1,0 +1,34 @@
+---
+
+- name: install software packages
+  apt:
+    name: "{{ item }}"
+    state: latest
+  with_items:
+  - manila-api
+  - manila-scheduler
+  - python-manilaclient
+  notify:
+  - sync manila database
+
+- name: update manila config
+  template:
+    src: manila.conf.j2
+    dest: /etc/manila/manila.conf
+  notify:
+  - restart manila-api service
+  - restart manila-scheduler service
+
+- name: enable manila-api service
+  service:
+    name: manila-api
+    enabled: yes
+
+- name: enable manila-scheduler service
+  service:
+    name: manila-scheduler
+    enabled: yes
+
+- name: run queued handlers
+  meta:
+    flush_handlers

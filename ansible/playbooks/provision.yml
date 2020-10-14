@@ -1,0 +1,31 @@
+---
+
+- name: create machines
+  hosts: localhost
+  connection: local
+  vars:
+  - provision_mode: create
+  tasks:
+  - include_role:
+      name: provision
+    with_items: "{{ environment_machines }}"
+    loop_control:
+      loop_var: machine
+  - include_role:
+      name: inventory
+  tags: create
+
+- name: delete machines
+  hosts: localhost
+  connection: local
+  vars:
+  - provision_mode: delete
+  tasks:
+  - include_role:
+      name: provision
+    with_items: "{{ environment_machines }}"
+    loop_control:
+      loop_var: machine
+  - include_role:
+      name: inventory
+  tags: delete

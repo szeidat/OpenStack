@@ -1,0 +1,16 @@
+{
+  "environment_backend": "esx",
+  "environment_manager": "ansible",
+  "environment_distro": "opensuse",
+  "environment_description": "server vmware stack with ovsvapp",
+  "environment_inherit": "esx",
+  "vcenter_compute_cluster_setup": true,
+  "vcenter_compute_cluster_name": "compute",
+  "vcenter_compute_cluster_enable_drs": true,
+  "vcenter_compute_cluster_enable_ha": false,
+  "vcenter_compute_esx_hostname": "hosts04.lab.local",
+  "vcenter_compute_esx_user": "root",
+  "vcenter_compute_esx_password": "password",
+  "vcenter_compute_esx_cloud_vmnic": "vmnic1",
+  "vcenter_compute_esx_data_vmnic": "vmnic2"
+}

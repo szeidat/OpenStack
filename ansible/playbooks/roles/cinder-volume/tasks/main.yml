@@ -1,0 +1,10 @@
+---
+
+- include: "{{ environment_distro }}/ceph.yml"
+  when: "'ceph' in cinder_volume_backends"
+
+- include: "{{ environment_distro }}/vmdk.yml"
+  when: "'vmdk' in cinder_volume_backends"
+
+- include: "{{ environment_distro }}/lvm.yml"
+  when: "'lvm' in cinder_volume_backends"

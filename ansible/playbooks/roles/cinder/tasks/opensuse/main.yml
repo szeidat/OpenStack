@@ -1,0 +1,33 @@
+---
+
+- name: install software packages
+  zypper:
+    name: "{{ item }}"
+    state: latest
+  with_items:
+  - openstack-cinder-api
+  - openstack-cinder-scheduler
+  notify:
+  - sync cinder database
+
+- name: update cinder config
+  template:
+    src: cinder.conf.j2
+    dest: /etc/cinder/cinder.conf
+  notify:
+  - restart openstack-cinder-api service
+  - restart openstack-cinder-scheduler service
+
+- name: enable openstack-cinder-api service
+  service:
+    name: openstack-cinder-api
+    enabled: yes
+
+- name: enable openstack-cinder-scheduler service
+  service:
+    name: openstack-cinder-scheduler
+    enabled: yes
+
+- name: run queued handlers
+  meta:
+    flush_handlers

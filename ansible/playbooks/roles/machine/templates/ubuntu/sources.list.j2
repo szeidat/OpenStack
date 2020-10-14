@@ -1,0 +1,5 @@
+# {{ ansible_managed }}
+
+deb http://{{ apt_cache_server }}:{{ apt_cache_port }}/au.archive.ubuntu.com/ubuntu/ xenial main restricted universe multiverse
+deb http://{{ apt_cache_server }}:{{ apt_cache_port }}/au.archive.ubuntu.com/ubuntu/ xenial-updates main restricted universe multiverse
+deb http://{{ apt_cache_server }}:{{ apt_cache_port }}/au.archive.ubuntu.com/ubuntu/ xenial-security main restricted universe multiverse

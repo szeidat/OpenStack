@@ -1,0 +1,132 @@
+---
+
+- name: add foreman repository key
+  apt_key:
+    data: "{{ lookup('file', 'foreman.key') }}"
+
+- name: add foreman repository
+  template:
+    src: foreman.list.j2
+    dest: /etc/apt/sources.list.d/foreman.list
+
+- name: install software packages
+  apt:
+    name: "{{ item }}"
+    state: latest
+    update_cache: yes
+  with_items:
+  - mariadb-server
+  - python-mysqldb
+  - foreman
+  - foreman-mysql2
+  - foreman-cli
+  - foreman-vmware
+  - ruby-foreman-ansible
+  - python-requests
+  notify:
+  - create foreman database
+  - seed foreman database
+  - update foreman apipie cache
+  - set foreman admin password
+
+- name: copy client ssl key
+  copy:
+    src: client_key.pem
+    dest: /etc/foreman/client_key.pem
+
+- name: copy client ssl cert
+  copy:
+    src: client_cert.pem
+    dest: /etc/foreman/client_cert.pem
+
+- name: update mariadb config
+  copy:
+    src: foreman.cnf
+    dest: /etc/mysql/mariadb.conf.d/99-foreman.cnf
+  notify:
+  - restart mariadb service
+
+- name: start mariadb service
+  service:
+    name: mysql
+    state: started
+
+- name: enable mariadb service
+  service:
+    name: mysql
+    enabled: yes
+
+- name: remove test database
+  mysql_db:
+    name: test
+    state: absent
+
+- name: remove anonymous user
+  mysql_user:
+    name: ''
+    host_all: yes
+    state: absent
+
+- name: restrict root access
+  mysql_user:
+    name: root
+    host: '%'
+    state: absent
+
+- name: set root password
+  mysql_user:
+    name: root
+    host_all: yes
+    password: "{{ foreman_database_password }}"
+
+- name: update root config
+  template:
+    src: root.my.cnf.j2
+    dest: /root/.my.cnf
+    mode: '0600'
+
+- name: create foreman database
+  mysql_db:
+    name: "{{ foreman_database_name }}"
+    encoding: utf8
+
+- name: create foreman user
+  mysql_user:
+    name: "{{ foreman_database_user }}"
+    password: "{{ foreman_database_password }}"
+    host: '%'
+    priv: "{{ foreman_database_name }}.*:ALL"
+
+- name: configure foreman startup
+  replace:
+    dest: /etc/default/foreman
+    regexp: "START=no"
+    replace: "START=yes"
+
+- name: update foreman settings.yml
+  template:
+    src: settings.yaml.j2
+    dest: /etc/foreman/settings.yaml
+  notify:
+  - restart foreman service
+
+- name: update foreman database.yml
+  template:
+    src: database.yml.j2
+    dest: /etc/foreman/database.yml
+  notify:
+  - restart foreman service
+
+- name: update foreman cli foreman.yml
+  template:
+    src: foreman.yml.j2
+    dest: /etc/hammer/cli.modules.d/foreman.yml
+
+- name: enable foreman service
+  service:
+    name: foreman
+    enabled: yes
+
+- name: run queued handlers
+  meta:
+    flush_handlers

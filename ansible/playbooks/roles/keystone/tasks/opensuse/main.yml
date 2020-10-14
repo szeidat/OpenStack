@@ -1,0 +1,694 @@
+---
+
+- name: install software packages
+  zypper:
+    name: "{{ item }}"
+    state: latest
+  with_items:
+  - openstack-keystone
+  - apache2
+  - apache2-mod_wsgi
+  - jq
+  - python-openstackclient
+  notify:
+  - sync keystone database
+  - setup fernet repository
+  - setup fernet keys
+  - setup pki signing
+  - bootstrap keystone
+
+- name: fix keystone credential-keys folder permission
+  file:
+    path: /etc/keystone/credential-keys
+    owner: keystone
+    group: keystone
+
+- name: update keystone config
+  template:
+    src: keystone.conf.j2
+    dest: /etc/keystone/keystone.conf
+  notify:
+  - restart apache2 service
+
+- name: update keystone apache2 config
+  template:
+    src: apache2.conf.j2
+    dest: /etc/apache2/conf.d/keystone.conf
+  notify:
+  - restart apache2 service
+
+- name: enable apache2 service
+  service:
+    name: apache2
+    enabled: yes
+
+- name: run queued handlers
+  meta:
+    flush_handlers
+
+- name: create root clouds folder
+  file:
+    path: /root/.config/openstack
+    state: directory
+    mode: '0700'
+
+- name: update root clouds file
+  template:
+    src: opensuse/admin-clouds.yaml.j2
+    dest: /root/.config/openstack/clouds.yaml
+    mode: '0600'
+
+- name: update root openrc file
+  template:
+    src: opensuse/admin-openrc.j2
+    dest: /root/.openrc
+    mode: '0600'
+
+- name: create service project
+  osc_project:
+    cloud: local
+    name: service
+    description: Default project for the cloud services.
+  register: result
+  run_once: true
+  retries: 5
+  delay: 10
+  until: result|success
+
+- name: create user role
+  osc_role:
+    cloud: local
+    name: user
+  run_once: true
+
+- name: create glance user
+  osc_user:
+    cloud: local
+    name: "{{ glance_service_user }}"
+    password: "{{ glance_service_password }}"
+  run_once: true
+
+- name: assign glance user admin role
+  osc_role:
+    cloud: local
+    name: admin
+    state: added
+    user: "{{ glance_service_user }}"
+    project: service
+  run_once: true
+
+- name: create glance service
+  osc_service:
+    cloud: local
+    name: glance
+    description: OpenStack Image
+    type: image
+  run_once: true
+
+- name: create glance public endpoint
+  osc_endpoint:
+    cloud: local
+    service: glance
+    interface: public
+    region: "{{ glance_region_name }}"
+    url: "{% if stack_ssl_enabled %}https{% else %}http{% endif %}://{{ stack_access_ipaddress }}:9292"
+  run_once: true
+
+- name: create glance internal endpoint
+  osc_endpoint:
+    cloud: local
+    service: glance
+    interface: internal
+    region: "{{ glance_region_name }}"
+    url: "{% if stack_ssl_enabled %}https{% else %}http{% endif %}://{{ stack_management_ipaddress }}:9292"
+  run_once: true
+
+- name: create glance admin endpoint
+  osc_endpoint:
+    cloud: local
+    service: glance
+    interface: admin
+    region: "{{ glance_region_name }}"
+    url: "{% if stack_ssl_enabled %}https{% else %}http{% endif %}://{{ stack_management_ipaddress }}:9292"
+  run_once: true
+
+- name: create nova user
+  osc_user:
+    cloud: local
+    name: "{{ nova_service_user }}"
+    password: "{{ nova_service_password }}"
+  run_once: true
+
+- name: assign nova user admin role
+  osc_role:
+    cloud: local
+    name: admin
+    state: added
+    user: "{{ nova_service_user }}"
+    project: service
+  run_once: true
+
+- name: create nova service
+  osc_service:
+    cloud: local
+    name: nova
+    description: OpenStack Compute
+    type: compute
+  run_once: true
+
+- name: create nova public endpoint
+  osc_endpoint:
+    cloud: local
+    service: nova
+    interface: public
+    region: "{{ nova_region_name }}"
+    url: "{% if stack_ssl_enabled %}https{% else %}http{% endif %}://{{ stack_access_ipaddress }}:8774/v2.1/%(tenant_id)s"
+  run_once: true
+
+- name: create nova internal endpoint
+  osc_endpoint:
+    cloud: local
+    service: nova
+    interface: internal
+    region: "{{ nova_region_name }}"
+    url: "{% if stack_ssl_enabled %}https{% else %}http{% endif %}://{{ stack_management_ipaddress }}:8774/v2.1/%(tenant_id)s"
+  run_once: true
+
+- name: create nova admin endpoint
+  osc_endpoint:
+    cloud: local
+    service: nova
+    interface: admin
+    region: "{{ nova_region_name }}"
+    url: "{% if stack_ssl_enabled %}https{% else %}http{% endif %}://{{ stack_management_ipaddress }}:8774/v2.1/%(tenant_id)s"
+  run_once: true
+
+- name: create neutron user
+  osc_user:
+    cloud: local
+    name: "{{ neutron_service_user }}"
+    password: "{{ neutron_service_password }}"
+  run_once: true
+
+- name: assign neutron user admin role
+  osc_role:
+    cloud: local
+    name: admin
+    state: added
+    user: "{{ neutron_service_user }}"
+    project: service
+  run_once: true
+
+- name: create neutron service
+  osc_service:
+    cloud: local
+    name: neutron
+    description: OpenStack Networking
+    type: network
+  run_once: true
+
+- name: create neutron public endpoint
+  osc_endpoint:
+    cloud: local
+    service: neutron
+    interface: public
+    region: "{{ neutron_region_name }}"
+    url: "{% if stack_ssl_enabled %}https{% else %}http{% endif %}://{{ stack_access_ipaddress }}:9696"
+  run_once: true
+
+- name: create neutron internal endpoint
+  osc_endpoint:
+    cloud: local
+    service: neutron
+    interface: internal
+    region: "{{ neutron_region_name }}"
+    url: "{% if stack_ssl_enabled %}https{% else %}http{% endif %}://{{ stack_management_ipaddress }}:9696"
+  run_once: true
+
+- name: create neutron admin endpoint
+  osc_endpoint:
+    cloud: local
+    service: neutron
+    interface: admin
+    region: "{{ neutron_region_name }}"
+    url: "{% if stack_ssl_enabled %}https{% else %}http{% endif %}://{{ stack_management_ipaddress }}:9696"
+  run_once: true
+
+- name: create swift user
+  osc_user:
+    cloud: local
+    name: "{{ swift_service_user }}"
+    password: "{{ swift_service_password }}"
+  run_once: true
+
+- name: assign swift user admin role
+  osc_role:
+    cloud: local
+    name: admin
+    state: added
+    user: "{{ swift_service_user }}"
+    project: service
+  run_once: true
+
+- name: create swift service
+  osc_service:
+    cloud: local
+    name: swift
+    description: OpenStack Object Storage
+    type: object-store
+  run_once: true
+
+- name: create swift public endpoint
+  osc_endpoint:
+    cloud: local
+    service: swift
+    interface: public
+    region: "{{ swift_region_name }}"
+    url: "{% if stack_ssl_enabled %}https{% else %}http{% endif %}://{{ stack_access_ipaddress }}:8080/swift/v1"
+  run_once: true
+
+- name: create swift internal endpoint
+  osc_endpoint:
+    cloud: local
+    service: swift
+    interface: internal
+    region: "{{ swift_region_name }}"
+    url: "{% if stack_ssl_enabled %}https{% else %}http{% endif %}://{{ stack_management_ipaddress }}:8080/swift/v1"
+  run_once: true
+
+- name: create swift admin endpoint
+  osc_endpoint:
+    cloud: local
+    service: swift
+    interface: admin
+    region: "{{ swift_region_name }}"
+    url: "{% if stack_ssl_enabled %}https{% else %}http{% endif %}://{{ stack_management_ipaddress }}:8080/swift/v1"
+  run_once: true
+
+- name: create cinder user
+  osc_user:
+    cloud: local
+    name: "{{ cinder_service_user }}"
+    password: "{{ cinder_service_password }}"
+  run_once: true
+
+- name: assign cinder user admin role
+  osc_role:
+    cloud: local
+    name: admin
+    state: added
+    user: "{{ cinder_service_user }}"
+    project: service
+  run_once: true
+
+- name: create cinder v1 service
+  osc_service:
+    cloud: local
+    name: cinder
+    description: OpenStack Block Storage
+    type: volume
+  run_once: true
+
+- name: create cinder v2 service
+  osc_service:
+    cloud: local
+    name: cinderv2
+    description: OpenStack Block Storage
+    type: volumev2
+  run_once: true
+
+- name: create cinder v1 public endpoint
+  osc_endpoint:
+    cloud: local
+    service: cinder
+    interface: public
+    region: "{{ cinder_region_name }}"
+    url: "{% if stack_ssl_enabled %}https{% else %}http{% endif %}://{{ stack_access_ipaddress }}:8776/v1/%(tenant_id)s"
+  run_once: true
+
+- name: create cinder v2 public endpoint
+  osc_endpoint:
+    cloud: local
+    service: cinderv2
+    interface: public
+    region: "{{ cinder_region_name }}"
+    url: "{% if stack_ssl_enabled %}https{% else %}http{% endif %}://{{ stack_access_ipaddress }}:8776/v2/%(tenant_id)s"
+  run_once: true
+  
+- name: create cinder v1 internal endpoint
+  osc_endpoint:
+    cloud: local
+    service: cinder
+    interface: internal
+    region: "{{ cinder_region_name }}"
+    url: "{% if stack_ssl_enabled %}https{% else %}http{% endif %}://{{ stack_management_ipaddress }}:8776/v1/%(tenant_id)s"
+  run_once: true
+
+- name: create cinder v2 internal endpoint
+  osc_endpoint:
+    cloud: local
+    service: cinderv2
+    interface: internal
+    region: "{{ cinder_region_name }}"
+    url: "{% if stack_ssl_enabled %}https{% else %}http{% endif %}://{{ stack_management_ipaddress }}:8776/v2/%(tenant_id)s"
+  run_once: true
+  
+- name: create cinder v1 admin endpoint
+  osc_endpoint:
+    cloud: local
+    service: cinder
+    interface: admin
+    region: "{{ cinder_region_name }}"
+    url: "{% if stack_ssl_enabled %}https{% else %}http{% endif %}://{{ stack_management_ipaddress }}:8776/v1/%(tenant_id)s"
+  run_once: true
+
+- name: create cinder v2 admin endpoint
+  osc_endpoint:
+    cloud: local
+    service: cinderv2
+    interface: admin
+    region: "{{ cinder_region_name }}"
+    url: "{% if stack_ssl_enabled %}https{% else %}http{% endif %}://{{ stack_management_ipaddress }}:8776/v2/%(tenant_id)s"
+  run_once: true
+
+- name: create manila user
+  osc_user:
+    cloud: local
+    name: "{{ manila_service_user }}"
+    password: "{{ manila_service_password }}"
+  run_once: true
+
+- name: assign manila user admin role
+  osc_role:
+    cloud: local
+    name: admin
+    state: added
+    user: "{{ manila_service_user }}"
+    project: service
+  run_once: true
+
+- name: create manila v1 service
+  osc_service:
+    cloud: local
+    name: manila
+    description: OpenStack Shared Files
+    type: share
+  run_once: true
+
+- name: create manila v2 service
+  osc_service:
+    cloud: local
+    name: manilav2
+    description: OpenStack Shared Files
+    type: sharev2
+  run_once: true
+
+- name: create manila v1 public endpoint
+  osc_endpoint:
+    cloud: local
+    service: manila
+    interface: public
+    region: "{{ manila_region_name }}"
+    url: "{% if stack_ssl_enabled %}https{% else %}http{% endif %}://{{ stack_access_ipaddress }}:8786/v1/%(tenant_id)s"
+  run_once: true
+
+- name: create manila v2 public endpoint
+  osc_endpoint:
+    cloud: local
+    service: manilav2
+    interface: public
+    region: "{{ manila_region_name }}"
+    url: "{% if stack_ssl_enabled %}https{% else %}http{% endif %}://{{ stack_access_ipaddress }}:8786/v2/%(tenant_id)s"
+  run_once: true
+  
+- name: create manila v1 internal endpoint
+  osc_endpoint:
+    cloud: local
+    service: manila
+    interface: internal
+    region: "{{ manila_region_name }}"
+    url: "{% if stack_ssl_enabled %}https{% else %}http{% endif %}://{{ stack_management_ipaddress }}:8786/v1/%(tenant_id)s"
+  run_once: true
+
+- name: create manila v2 internal endpoint
+  osc_endpoint:
+    cloud: local
+    service: manilav2
+    interface: internal
+    region: "{{ manila_region_name }}"
+    url: "{% if stack_ssl_enabled %}https{% else %}http{% endif %}://{{ stack_management_ipaddress }}:8786/v2/%(tenant_id)s"
+  run_once: true
+  
+- name: create manila v1 admin endpoint
+  osc_endpoint:
+    cloud: local
+    service: manila
+    interface: admin
+    region: "{{ manila_region_name }}"
+    url: "{% if stack_ssl_enabled %}https{% else %}http{% endif %}://{{ stack_management_ipaddress }}:8786/v1/%(tenant_id)s"
+  run_once: true
+
+- name: create manila v2 admin endpoint
+  osc_endpoint:
+    cloud: local
+    service: manilav2
+    interface: admin
+    region: "{{ manila_region_name }}"
+    url: "{% if stack_ssl_enabled %}https{% else %}http{% endif %}://{{ stack_management_ipaddress }}:8786/v2/%(tenant_id)s"
+  run_once: true
+
+- name: create heat user
+  osc_user:
+    cloud: local
+    name: "{{ heat_service_user }}"
+    password: "{{ heat_service_password }}"
+  run_once: true
+
+- name: assign heat user admin role
+  osc_role:
+    cloud: local
+    name: admin
+    state: added
+    user: "{{ heat_service_user }}"
+    project: service
+  run_once: true
+
+- name: create heat service
+  osc_service:
+    cloud: local
+    name: heat
+    description: OpenStack Orchestration
+    type: orchestration
+  run_once: true
+
+- name: create heat public endpoint
+  osc_endpoint:
+    cloud: local
+    service: heat
+    interface: public
+    region: "{{ heat_region_name }}"
+    url: "{% if stack_ssl_enabled %}https{% else %}http{% endif %}://{{ stack_access_ipaddress }}:8004/v1/%(tenant_id)s"
+  run_once: true
+
+- name: create heat internal endpoint
+  osc_endpoint:
+    cloud: local
+    service: heat
+    interface: internal
+    region: "{{ heat_region_name }}"
+    url: "{% if stack_ssl_enabled %}https{% else %}http{% endif %}://{{ stack_management_ipaddress }}:8004/v1/%(tenant_id)s"
+  run_once: true
+
+- name: create heat admin endpoint
+  osc_endpoint:
+    cloud: local
+    service: heat
+    interface: admin
+    region: "{{ heat_region_name }}"
+    url: "{% if stack_ssl_enabled %}https{% else %}http{% endif %}://{{ stack_management_ipaddress }}:8004/v1/%(tenant_id)s"
+  run_once: true
+
+- name: create heat-cfn service
+  osc_service:
+    cloud: local
+    name: heat-cfn
+    description: OpenStack CloudFormation
+    type: cloudformation
+  run_once: true
+
+- name: create heat-cfn public endpoint
+  osc_endpoint:
+    cloud: local
+    service: heat-cfn
+    interface: public
+    region: "{{ heat_region_name }}"
+    url: "{% if stack_ssl_enabled %}https{% else %}http{% endif %}://{{ stack_access_ipaddress }}:8000/v1"
+  run_once: true
+  
+- name: create heat-cfn internal endpoint
+  osc_endpoint:
+    cloud: local
+    service: heat-cfn
+    interface: internal
+    region: "{{ heat_region_name }}"
+    url: "{% if stack_ssl_enabled %}https{% else %}http{% endif %}://{{ stack_management_ipaddress }}:8000/v1"
+  run_once: true
+  
+- name: create heat-cfn admin endpoint
+  osc_endpoint:
+    cloud: local
+    service: heat-cfn
+    interface: admin
+    region: "{{ heat_region_name }}"
+    url: "{% if stack_ssl_enabled %}https{% else %}http{% endif %}://{{ stack_management_ipaddress }}:8000/v1"
+  run_once: true
+
+- name: create heat domain
+  osc_domain:
+    cloud: local
+    name: "{{ heat_domain_name }}"
+    description: Orchestration domain
+  run_once: true
+
+- name: create heat domain admin
+  osc_user:
+    cloud: local
+    name: "{{ heat_domain_admin_user }}"
+    password: "{{ heat_domain_admin_password }}"
+    domain: "{{ heat_domain_name }}"
+  run_once: true
+
+- name: assign heat domain admin role
+  osc_role:
+    cloud: local
+    name: admin
+    state: added
+    user: "{{ heat_domain_admin_user }}"
+    domain: "{{ heat_domain_name }}"
+  run_once: true
+
+- name: create magnum user
+  osc_user:
+    cloud: local
+    name: "{{ magnum_service_user }}"
+    password: "{{ magnum_service_password }}"
+  run_once: true
+
+- name: assign magnum user admin role
+  osc_role:
+    cloud: local
+    name: admin
+    state: added
+    user: "{{ magnum_service_user }}"
+    project: service
+  run_once: true
+
+- name: create magnum service
+  osc_service:
+    cloud: local
+    name: magnum
+    description: OpenStack Containers
+    type: container-infra
+  run_once: true
+
+- name: create magnum public endpoint
+  osc_endpoint:
+    cloud: local
+    service: magnum
+    interface: public
+    region: "{{ magnum_region_name }}"
+    url: "{% if stack_ssl_enabled %}https{% else %}http{% endif %}://{{ stack_access_ipaddress }}:9511/v1"
+  run_once: true
+
+- name: create magnum internal endpoint
+  osc_endpoint:
+    cloud: local
+    service: magnum
+    interface: internal
+    region: "{{ magnum_region_name }}"
+    url: "{% if stack_ssl_enabled %}https{% else %}http{% endif %}://{{ stack_management_ipaddress }}:9511/v1"
+  run_once: true
+
+- name: create magnum admin endpoint
+  osc_endpoint:
+    cloud: local
+    service: magnum
+    interface: admin
+    region: "{{ magnum_region_name }}"
+    url: "{% if stack_ssl_enabled %}https{% else %}http{% endif %}://{{ stack_management_ipaddress }}:9511/v1"
+  run_once: true
+
+- name: create magnum domain
+  osc_domain:
+    cloud: local
+    name: "{{ magnum_domain_name }}"
+    description: Containers domain
+  run_once: true
+
+- name: create magnum domain admin
+  osc_user:
+    cloud: local
+    name: "{{ magnum_domain_admin_user }}"
+    password: "{{ magnum_domain_admin_password }}"
+    domain: "{{ magnum_domain_name }}"
+  run_once: true
+
+- name: assign magnum domain admin role
+  osc_role:
+    cloud: local
+    name: admin
+    state: added
+    user: "{{ magnum_domain_admin_user }}"
+    domain: "{{ magnum_domain_name }}"
+  run_once: true
+
+- name: create trove user
+  osc_user:
+    cloud: local
+    name: "{{ trove_service_user }}"
+    password: "{{ trove_service_password }}"
+  run_once: true
+
+- name: assign trove user admin role
+  osc_role:
+    cloud: local
+    name: admin
+    state: added
+    user: "{{ trove_service_user }}"
+    project: service
+  run_once: true
+
+- name: create trove service
+  osc_service:
+    cloud: local
+    name: trove
+    description: OpenStack Database
+    type: database
+  run_once: true
+
+- name: create trove public endpoint
+  osc_endpoint:
+    cloud: local
+    service: trove
+    interface: public
+    region: "{{ trove_region_name }}"
+    url: "{% if stack_ssl_enabled %}https{% else %}http{% endif %}://{{ stack_access_ipaddress }}:8779/v1.0/%(tenant_id)s"
+  run_once: true
+
+- name: create trove internal endpoint
+  osc_endpoint:
+    cloud: local
+    service: trove
+    interface: internal
+    region: "{{ trove_region_name }}"
+    url: "{% if stack_ssl_enabled %}https{% else %}http{% endif %}://{{ stack_management_ipaddress }}:8779/v1.0/%(tenant_id)s"
+  run_once: true
+
+- name: create trove admin endpoint
+  osc_endpoint:
+    cloud: local
+    service: trove
+    interface: admin
+    region: "{{ trove_region_name }}"
+    url: "{% if stack_ssl_enabled %}https{% else %}http{% endif %}://{{ stack_management_ipaddress }}:8779/v1.0/%(tenant_id)s"
+  run_once: true

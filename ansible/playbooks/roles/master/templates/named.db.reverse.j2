@@ -1,0 +1,12 @@
+; {{ ansible_managed }}
+
+@       IN      SOA     localhost. root.localhost. (
+                              1         ; Serial
+                         604800         ; Refresh
+                          86400         ; Retry
+                        2419200         ; Expire
+                         604800 )       ; Negative Cache TTL
+;
+@       IN      NS      localhost.
+{{ master_management_ipaddress | ipaddr('revdns') }}           PTR     {{ master_hostname }}.{{ management_domain }}.
+{{ stack_management_ipaddress | ipaddr('revdns') }}           PTR     {{ stack_management_hostname }}.{{ management_domain }}.

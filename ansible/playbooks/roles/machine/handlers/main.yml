@@ -1,0 +1,21 @@
+---
+
+- name: update ca certificates
+  shell: update-ca-certificates
+
+- name: update ca trust
+  shell: update-ca-trust
+
+- name: reboot host
+  shell: sleep 2 && shutdown -r now
+  async: 1
+  poll: 0
+
+- name: wait for host
+  local_action:
+    module: wait_for
+    host: "{{ inventory_hostname }}"
+    state: started
+    port: 22
+    delay: 30
+    timeout: 300

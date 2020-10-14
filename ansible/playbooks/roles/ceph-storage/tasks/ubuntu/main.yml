@@ -1,0 +1,124 @@
+---
+
+- name: install software packages
+  apt:
+    name: ceph
+    state: latest
+
+- name: create ceph-osd service override folder
+  file:
+    path: /etc/systemd/system/ceph-osd@.service.d
+    state: directory
+  when: lxd_ceph_service_override is defined and lxd_ceph_service_override
+  notify:
+  - systemd daemon reload
+
+- name: create ceph-osd service override
+  copy:
+    src: ceph.override.conf
+    dest: /etc/systemd/system/ceph-osd@.service.d/override.conf
+  when: lxd_ceph_service_override is defined and lxd_ceph_service_override
+  notify:
+  - systemd daemon reload
+
+- name: create ceph config folder
+  file:
+    path: /etc/ceph/ceph.conf.d
+    state: directory
+
+- name: wait for ceph global config
+  local_action:
+    module: wait_for
+    path: /var/lib/ansible/ceph/ceph-global.conf
+    
+- name: copy ceph global config
+  copy:
+    src: /var/lib/ansible/ceph/ceph-global.conf
+    dest: /etc/ceph/ceph.conf.d/ceph-global.conf
+
+- name: update ceph osd config
+  template:
+    src: ceph-osd.conf.j2
+    dest: /etc/ceph/ceph.conf.d/ceph-osd.conf
+
+- name: assemble ceph config
+  assemble:
+    src: /etc/ceph/ceph.conf.d
+    dest: /etc/ceph/ceph.conf
+  notify:
+  - restart ceph-osd service
+
+- name: wait for osd bootstrap keyring
+  local_action:
+    module: wait_for
+    path: /var/lib/ansible/ceph/osd.keyring
+
+- name: copy osd bootstrap keyring
+  copy:
+    src: /var/lib/ansible/ceph/osd.keyring
+    dest: /var/lib/ceph/bootstrap-osd/ceph.keyring
+
+- name: update ceph directory ownership
+  file:
+    path: /var/lib/ceph
+    state: directory
+    recurse: yes
+    owner: ceph
+    group: ceph
+
+- name: read storage path
+  stat:
+    path: "{{ ceph_osd_storage_path }}"
+  register: spath
+  
+- name: prepare storage disk
+  command: >
+    /usr/sbin/ceph-disk
+    prepare
+    --fs-type xfs
+    "{{ ceph_osd_storage_path }}"
+  ignore_errors: true
+  changed_when: false
+  when: spath.stat.isblk is defined and spath.stat.isblk
+
+- name: activate storage disk
+  command: >
+    /usr/sbin/ceph-disk
+    activate
+    "{{ ceph_osd_storage_path }}1"
+  changed_when: false
+  when: spath.stat.isblk is defined and spath.stat.isblk
+
+- name: create storage folder
+  file:
+    path: "{{ ceph_osd_storage_path }}"
+    state: directory
+    owner: ceph
+    group: ceph
+  when: spath.stat.isblk is not defined or not spath.stat.isblk
+
+- name: prepare storage folder
+  command: >
+    /usr/sbin/ceph-disk
+    prepare
+    "{{ ceph_osd_storage_path }}"
+  ignore_errors: true
+  changed_when: false
+  when: spath.stat.isblk is not defined or not spath.stat.isblk
+
+- name: activate storage folder
+  command: >
+    /usr/sbin/ceph-disk
+    activate
+    "{{ ceph_osd_storage_path }}"
+  changed_when: false
+  when: spath.stat.isblk is not defined or not spath.stat.isblk
+
+- name: enable ceph-osd service
+  service:
+    name: ceph-osd@0
+    enabled: yes
+
+- name: run queued handlers
+  meta:
+    flush_handlers

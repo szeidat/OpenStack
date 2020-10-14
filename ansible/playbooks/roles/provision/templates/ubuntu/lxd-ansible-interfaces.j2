@@ -1,0 +1,14 @@
+# loopback interface
+iface lo inet loopback
+auto lo
+
+# management interface
+auto eth-management
+iface eth-management inet static
+{% for nic in machine.nics %}
+{% if nic.network == 'management' %}
+address {{ nic.ipaddress }}
+{% endif %}
+{% endfor %}
+netmask {{ management_netmask }}
+gateway {{ management_gateway }}

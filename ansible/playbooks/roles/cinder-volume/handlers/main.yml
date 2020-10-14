@@ -1,0 +1,21 @@
+---
+
+- name: restart cinder-volume service
+  service:
+    name: cinder-volume
+    state: restarted
+
+- name: restart cinder-backup service
+  service:
+    name: cinder-backup
+    state: restarted
+
+- name: restart openstack-cinder-volume service
+  service:
+    name: openstack-cinder-volume
+    state: restarted
+
+- name: restart openstack-cinder-backup service
+  service:
+    name: openstack-cinder-backup
+    state: restarted

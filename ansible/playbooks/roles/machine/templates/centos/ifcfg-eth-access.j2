@@ -1,0 +1,10 @@
+# {{ ansible_managed }}
+
+DEVICE=eth-access
+BOOTPROTO=static
+IPADDR={{ access_ipaddress }}
+NETMASK={{ access_netmask }}
+NAME=eth-access
+TYPE=Ethernet
+NM_CONTROLLED=no
+ONBOOT=yes

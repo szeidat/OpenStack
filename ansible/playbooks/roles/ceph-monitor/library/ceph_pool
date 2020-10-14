@@ -1,0 +1,78 @@
+#!/bin/bash
+
+# List pool
+function pool_list
+{
+  output=$(ceph osd pool ls 2>&1)
+  if [ $? -ne 0 ]; then
+    jq -n -c -M --arg msg "error getting pool list: $output" '{failed: true, msg: $msg}'
+    exit 1
+  fi
+}
+
+# Create pool
+function pool_create
+{
+  output=$(ceph osd pool create "$name" "$pg_num" 2>&1)
+  if [ $? -ne 0 ]; then
+    jq -n -c -M --arg msg "error creating pool: $output" '{failed: true, msg: $msg}'
+    exit 1
+  fi
+}
+
+# Delete pool
+function pool_delete
+{
+  output=$(ceph osd pool delete "$name" "$name" --yes-i-really-really-mean-it 2>&1)
+  if [ $? -ne 0 ]; then
+    jq -n -c -M --arg msg "error deleting pool: $output" '{failed: true, msg: $msg}'
+    exit 1
+  fi
+}
+
+# Read variables
+state=present
+source $1
+
+# Validate variables
+if [ -z "$name" ]; then
+  jq -n -c -M' {failed: true, msg: "missing required arguments: name"}'
+  exit 1
+fi
+
+if [ -z "$pg_num" ]; then
+  jq -n -c -M '{failed: true, msg: "missing required arguments: pg_num"}'
+  exit 1
+fi
+
+# Set requested state
+case $state in
+  present )
+  pool_list
+  if [ -z "$(echo "$output" | grep -F "$name")" ]; then
+    pool_create
+    jq -n -c -M --arg msg "$output" '{changed: true, msg: $msg}'
+    exit 0
+  else
+    jq -n -c -M --arg msg "$output" '{changed: false, msg: $msg}'
+    exit 0
+  fi
+  ;;
+
+  absent )
+  pool_list
+  if [ -z "$(echo "$output" | grep -F "$name")" ]; then
+    jq -n -c -M --arg msg "$output" '{changed: false, msg: $msg}'
+    exit 0
+  else
+    pool_delete
+    jq -n -c -M --arg msg "$output" '{changed: true, msg: $msg}'
+    exit 0
+  fi
+  ;;
+
+  * )
+  jq -n -c -M --arg msg "invalid state: $state" '{failed: true, msg: $msg}'
+  exit 1
+  ;;
+esac

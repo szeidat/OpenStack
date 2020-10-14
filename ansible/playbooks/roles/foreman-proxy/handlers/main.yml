@@ -1,0 +1,6 @@
+---
+
+- name: restart foreman-proxy service
+  service:
+    name: foreman-proxy
+    state: restarted

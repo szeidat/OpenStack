@@ -1,0 +1,33 @@
+---
+
+- name: install software packages
+  apt:
+    name: "{{ item }}"
+    state: latest
+  with_items:
+  - magnum-api
+  - magnum-conductor
+  notify:
+  - sync magnum database
+
+- name: update magnum config
+  template:
+    src: magnum.conf.j2
+    dest: /etc/magnum/magnum.conf
+  notify:
+  - restart magnum-api service
+  - restart magnum-conductor service
+
+- name: enable magnum-api service
+  service:
+    name: magnum-api
+    enabled: yes
+
+- name: enable magnum-conductor service
+  service:
+    name: magnum-conductor
+    enabled: yes
+
+- name: run queued handlers
+  meta:
+    flush_handlers

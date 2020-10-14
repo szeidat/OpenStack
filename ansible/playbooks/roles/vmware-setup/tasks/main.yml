@@ -1,0 +1,269 @@
+---
+
+- name: create management cluster
+  vmware_cluster:
+    hostname: "{{ vcenter_host }}"
+    username: "{{ vcenter_user }}"
+    password: "{{ vcenter_password }}"
+    validate_certs: no
+    datacenter_name: "{{ vcenter_datacenter }}"
+    cluster_name: "{{ vcenter_management_cluster_name }}"
+    enable_drs: "{{ vcenter_management_cluster_enable_drs }}"
+    enable_ha: "{{ vcenter_management_cluster_enable_ha }}"
+  when: vcenter_management_cluster_setup
+
+- name: create compute cluster
+  vmware_cluster:
+    hostname: "{{ vcenter_host }}"
+    username: "{{ vcenter_user }}"
+    password: "{{ vcenter_password }}"
+    validate_certs: no
+    datacenter_name: "{{ vcenter_datacenter }}"
+    cluster_name: "{{ vcenter_compute_cluster_name }}"
+    enable_drs: "{{ vcenter_compute_cluster_enable_drs }}"
+    enable_ha: "{{ vcenter_compute_cluster_enable_ha }}"
+  when: vcenter_compute_cluster_setup
+
+- name: add management esxi host
+  vmware_host:
+    hostname: "{{ vcenter_host }}"
+    username: "{{ vcenter_user }}"
+    password: "{{ vcenter_password }}"
+    validate_certs: no
+    datacenter_name: "{{ vcenter_datacenter }}"
+    cluster_name: "{{ vcenter_management_cluster_name }}"
+    esxi_hostname: "{{ vcenter_management_esx_hostname }}"
+    esxi_username: "{{ vcenter_management_esx_user }}"
+    esxi_password: "{{ vcenter_management_esx_password }}"
+  when: vcenter_management_cluster_setup
+
+- name: add compute esxi host
+  vmware_host:
+    hostname: "{{ vcenter_host }}"
+    username: "{{ vcenter_user }}"
+    password: "{{ vcenter_password }}"
+    validate_certs: no
+    datacenter_name: "{{ vcenter_datacenter }}"
+    cluster_name: "{{ vcenter_compute_cluster_name }}"
+    esxi_hostname: "{{ vcenter_compute_esx_hostname }}"
+    esxi_username: "{{ vcenter_compute_esx_user }}"
+    esxi_password: "{{ vcenter_compute_esx_password }}"
+  when: vcenter_compute_cluster_setup
+
+- name: create cloud distributed vswitch
+  vmware_dvswitch:
+    hostname: "{{ vcenter_host }}"
+    username: "{{ vcenter_user }}"
+    password: "{{ vcenter_password }}"
+    validate_certs: no
+    datacenter_name: "{{ vcenter_datacenter }}"
+    switch_name: "{{ vcenter_cloud_dvswitch }}"
+    uplink_quantity: 1
+    mtu: 1500
+    discovery_proto: cdp
+    discovery_operation: both
+  when: vcenter_management_cluster_setup or vcenter_compute_cluster_setup
+
+- name: add cloud distributed vswitch management host
+  vmware_dvs_host:
+    hostname: "{{ vcenter_host }}"
+    username: "{{ vcenter_user }}"
+    password: "{{ vcenter_password }}"
+    validate_certs: no
+    switch_name: "{{ vcenter_cloud_dvswitch }}"
+    esxi_hostname: "{{ vcenter_management_esx_hostname }}"
+    vmnics:
+    - "{{ vcenter_management_esx_cloud_vmnic }}"
+  when: vcenter_management_cluster_setup
+
+- name: add cloud distributed vswitch compute host
+  vmware_dvs_host:
+    hostname: "{{ vcenter_host }}"
+    username: "{{ vcenter_user }}"
+    password: "{{ vcenter_password }}"
+    validate_certs: no
+    switch_name: "{{ vcenter_cloud_dvswitch }}"
+    esxi_hostname: "{{ vcenter_compute_esx_hostname }}"
+    vmnics:
+    - "{{ vcenter_compute_esx_cloud_vmnic }}"
+  when: vcenter_compute_cluster_setup
+
+- name: create data distributed vswitch
+  vmware_dvswitch:
+    hostname: "{{ vcenter_host }}"
+    username: "{{ vcenter_user }}"
+    password: "{{ vcenter_password }}"
+    validate_certs: no
+    datacenter_name: "{{ vcenter_datacenter }}"
+    switch_name: "{{ vcenter_data_dvswitch }}"
+    uplink_quantity: 1
+    mtu: 1500
+    discovery_proto: cdp
+    discovery_operation: both
+  when: vcenter_management_cluster_setup or vcenter_compute_cluster_setup
+
+- name: add data distributed vswitch management host
+  vmware_dvs_host:
+    hostname: "{{ vcenter_host }}"
+    username: "{{ vcenter_user }}"
+    password: "{{ vcenter_password }}"
+    validate_certs: no
+    switch_name: "{{ vcenter_data_dvswitch }}"
+    esxi_hostname: "{{ vcenter_management_esx_hostname }}"
+    vmnics:
+    - "{{ vcenter_management_esx_data_vmnic }}"
+  when: vcenter_management_cluster_setup
+
+- name: add data distributed vswitch compute host
+  vmware_dvs_host:
+    hostname: "{{ vcenter_host }}"
+    username: "{{ vcenter_user }}"
+    password: "{{ vcenter_password }}"
+    validate_certs: no
+    switch_name: "{{ vcenter_data_dvswitch }}"
+    esxi_hostname: "{{ vcenter_compute_esx_hostname }}"
+    vmnics:
+    - "{{ vcenter_compute_esx_data_vmnic }}"
+  when: vcenter_compute_cluster_setup
+
+- name: create external distributed vswitch
+  vmware_dvswitch:
+    hostname: "{{ vcenter_host }}"
+    username: "{{ vcenter_user }}"
+    password: "{{ vcenter_password }}"
+    validate_certs: no
+    datacenter_name: "{{ vcenter_datacenter }}"
+    switch_name: "{{ vcenter_external_dvswitch }}"
+    uplink_quantity: 1
+    mtu: 1500
+    discovery_proto: cdp
+    discovery_operation: both
+  when: vcenter_management_cluster_setup
+
+- name: add external distributed vswitch management host
+  vmware_dvs_host:
+    hostname: "{{ vcenter_host }}"
+    username: "{{ vcenter_user }}"
+    password: "{{ vcenter_password }}"
+    validate_certs: no
+    switch_name: "{{ vcenter_external_dvswitch }}"
+    esxi_hostname: "{{ vcenter_management_esx_hostname }}"
+    vmnics:
+    - "{{ vcenter_management_esx_external_vmnic }}"
+  when: vcenter_management_cluster_setup
+
+- name: create security distributed vswitch
+  vmware_dvswitch:
+    hostname: "{{ vcenter_host }}"
+    username: "{{ vcenter_user }}"
+    password: "{{ vcenter_password }}"
+    validate_certs: no
+    datacenter_name: "{{ vcenter_datacenter }}"
+    switch_name: "{{ vcenter_security_dvswitch }}"
+    uplink_quantity: 1
+    mtu: 1500
+    discovery_proto: cdp
+    discovery_operation: both
+  when: vcenter_compute_cluster_setup
+
+- name: add security distributed vswitch compute host
+  vmware_dvs_host:
+    hostname: "{{ vcenter_host }}"
+    username: "{{ vcenter_user }}"
+    password: "{{ vcenter_password }}"
+    validate_certs: no
+    switch_name: "{{ vcenter_security_dvswitch }}"
+    esxi_hostname: "{{ vcenter_compute_esx_hostname }}"
+    vmnics: []
+  when: vcenter_compute_cluster_setup
+
+- name: create management portgroup
+  vmware_dvs_portgroup:
+    hostname: "{{ vcenter_host }}"
+    username: "{{ vcenter_user }}"
+    password: "{{ vcenter_password }}"
+    validate_certs: no
+    switch_name: "{{ vcenter_cloud_dvswitch }}"
+    portgroup_name: "{{ vcenter_management_portgroup }}"
+    portgroup_type: earlyBinding
+    vlan_id: 0
+    num_ports: 128
+  when: vcenter_management_cluster_setup or vcenter_compute_cluster_setup
+
+- name: create access portgroup
+  vmware_dvs_portgroup:
+    hostname: "{{ vcenter_host }}"
+    username: "{{ vcenter_user }}"
+    password: "{{ vcenter_password }}"
+    validate_certs: no
+    switch_name: "{{ vcenter_cloud_dvswitch }}"
+    portgroup_name: "{{ vcenter_access_portgroup }}"
+    portgroup_type: earlyBinding
+    vlan_id: 0
+    num_ports: 128
+  when: vcenter_management_cluster_setup
+
+- name: create external portgroup
+  vmware_dvs_portgroup:
+    hostname: "{{ vcenter_host }}"
+    username: "{{ vcenter_user }}"
+    password: "{{ vcenter_password }}"
+    validate_certs: no
+    switch_name: "{{ vcenter_external_dvswitch }}"
+    portgroup_name: "{{ vcenter_external_portgroup }}"
+    portgroup_type: earlyBinding
+    vlan_id: 0
+    num_ports: 128
+  when: vcenter_management_cluster_setup
+
+- name: create data portgroup
+  vmware_dvs_portgroup:
+    hostname: "{{ vcenter_host }}"
+    username: "{{ vcenter_user }}"
+    password: "{{ vcenter_password }}"
+    validate_certs: no
+    switch_name: "{{ vcenter_data_dvswitch }}"
+    portgroup_name: "{{ vcenter_data_portgroup }}"
+    portgroup_type: earlyBinding
+    vlan_id: 0
+    num_ports: 128
+  when: vcenter_management_cluster_setup or vcenter_compute_cluster_setup
+
+- name: create storage portgroup
+  vmware_dvs_portgroup:
+    hostname: "{{ vcenter_host }}"
+    username: "{{ vcenter_user }}"
+    password: "{{ vcenter_password }}"
+    validate_certs: no
+    switch_name: "{{ vcenter_cloud_dvswitch }}"
+    portgroup_name: "{{ vcenter_storage_portgroup }}"
+    portgroup_type: earlyBinding
+    vlan_id: 0
+    num_ports: 128
+  when: vcenter_management_cluster_setup
+
+- name: create replication portgroup
+  vmware_dvs_portgroup:
+    hostname: "{{ vcenter_host }}"
+    username: "{{ vcenter_user }}"
+    password: "{{ vcenter_password }}"
+    validate_certs: no
+    switch_name: "{{ vcenter_cloud_dvswitch }}"
+    portgroup_name: "{{ vcenter_replication_portgroup }}"
+    portgroup_type: earlyBinding
+    vlan_id: 0
+    num_ports: 128
+  when: vcenter_management_cluster_setup
+
+- name: create security portgroup
+  vmware_dvs_portgroup:
+    hostname: "{{ vcenter_host }}"
+    username: "{{ vcenter_user }}"
+    password: "{{ vcenter_password }}"
+    validate_certs: no
+    switch_name: "{{ vcenter_security_dvswitch }}"
+    portgroup_name: "{{ vcenter_security_portgroup }}"
+    portgroup_type: earlyBinding
+    vlan_id: 0
+    num_ports: 128
+  when: vcenter_compute_cluster_setup

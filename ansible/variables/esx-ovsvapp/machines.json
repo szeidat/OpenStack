@@ -1,0 +1,109 @@
+{
+  "environment_machines": [
+    {
+      "name": "stack-stm-01",
+      "provision": true,
+      "cluster": "production",
+      "datastore": "datastore11",
+      "cpus": "1",
+      "memory_mb": "2048",
+      "nics": [{"network": "management","ipaddress": "172.30.1.11"},{"network": "storage","ipaddress": "172.30.5.11"}],
+      "disks": [{"size_gb": "100"},{"size_gb": "100"}],
+      "groups": ["storage-manager"]
+    },
+    {
+      "name": "stack-stb-01",
+      "provision": true,
+      "cluster": "production",
+      "datastore": "datastore11",
+      "cpus": "1",
+      "memory_mb": "2048",
+      "nics": [{"network": "management","ipaddress": "172.30.1.12"},{"network": "storage","ipaddress": "172.30.5.12"},{"network": "replication","ipaddress": "172.30.6.12"}],
+      "disks": [{"size_gb": "100"},{"size_gb": "100"}],
+      "groups": ["storage-backend"],
+      "parameters": {"ceph_osd_storage_path": "/dev/sdb"}
+    },
+    {
+      "name": "stack-lba-01",
+      "provision": true,
+      "cluster": "production",
+      "datastore": "datastore11",
+      "cpus": "1",
+      "memory_mb": "2048",
+      "nics": [{"network": "management","ipaddress": "172.30.1.13"},{"network": "access","ipaddress": "172.30.2.13"}],
+      "disks": [{"size_gb": "100"},{"size_gb": "100"}],
+      "groups": ["load-balancer"]
+    },
+    {
+      "name": "stack-dbm-01",
+      "provision": true,
+      "cluster": "production",
+      "datastore": "datastore11",
+      "cpus": "1",
+      "memory_mb": "2048",
+      "nics": [{"network": "management","ipaddress": "172.30.1.14"}],
+      "disks": [{"size_gb": "100"},{"size_gb": "100"}],
+      "groups": ["database-messaging"]
+    },
+    {
+      "name": "stack-ccn-01",
+      "provision": true,
+      "cluster": "production",
+      "datastore": "datastore11",
+      "cpus": "2",
+      "memory_mb": "4096",
+      "nics": [{"network": "management","ipaddress": "172.30.1.15"},{"network": "storage","ipaddress": "172.30.5.15"}],
+      "disks": [{"size_gb": "100"},{"size_gb": "100"}],
+      "groups": ["cloud-controller"],
+      "parameters": {"glance_store_type": "vmdk","glance_vmware_datastore": "datastore11"}
+    },
+    {
+      "name": "stack-ngw-01",
+      "provision": true,
+      "cluster": "production",
+      "datastore": "datastore11",
+      "cpus": "1",
+      "memory_mb": "2048",
+      "nics": [{"network": "management","ipaddress": "172.30.1.16"},{"network": "external"},{"network": "data","ipaddress": "172.30.4.16"}],
+      "disks": [{"size_gb": "100"},{"size_gb": "100"}],
+      "groups": ["networking-gateway"],
+      "parameters": {"neutron_networking_type": "openvswitch"}
+    },
+    {
+      "name": "stack-cmp-01",
+      "provision": true,
+      "cluster": "compute",
+      "datastore": "datastore41",
+      "cpus": "1",
+      "memory_mb": "2048",
+      "nics": [{"network": "management","ipaddress": "172.30.1.17"},{"network": "data","ipaddress": "172.30.4.17"},{"network": "security"}],
+      "disks": [{"size_gb": "100"},{"size_gb": "100"}],
+      "groups": ["compute-provider"],
+      "parameters": {"nova_compute_type": "vmware","nova_compute_esx_hostname": "hosts04.lab.local","nova_compute_vmware_cluster": "compute","nova_compute_vmware_datastore": "datastore41","neutron_networking_type": "ovsvapp"}
+    },
+    {
+      "name": "stack-vlp-01",
+      "provision": true,
+      "cluster": "production",
+      "datastore": "datastore11",
+      "cpus": "1",
+      "memory_mb": "2048",
+      "nics": [{"network": "management","ipaddress": "172.30.1.18"},{"network": "storage","ipaddress": "172.30.5.18"}],
+      "disks": [{"size_gb": "100"},{"size_gb": "100"}],
+      "groups": ["volume-provider"],
+      "parameters": {"cinder_volume_backends": "vmdk","cinder_volume_vmware_cluster": "production","cinder_backup_type": "swift"}
+    },
+    {
+      "name": "stack-shp-01",
+      "provision": true,
+      "cluster": "production",
+      "datastore": "datastore11",
+      "cpus": "1",
+      "memory_mb": "2048",
+      "nics": [{"network": "management","ipaddress": "172.30.1.19"},{"network": "data","ipaddress": "172.30.4.19"}],
+      "disks": [{"size_gb": "100"},{"size_gb": "100"}],
+      "groups": ["share-provider"],
+      "parameters": {"manila_share_backends": "vmdk", "neutron_networking_type": "openvswitch"}
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+---
+
+- name: apply sysctl config
+  command: /sbin/sysctl --ignore --load /etc/sysctl.d/20-nonlocal-bind.conf
+
+- name: restart keepalived service
+  service:
+    name: keepalived
+    state: restarted

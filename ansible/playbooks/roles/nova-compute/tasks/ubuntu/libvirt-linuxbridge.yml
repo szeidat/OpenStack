@@ -1,0 +1,126 @@
+---
+
+- name: install software packages
+  apt:
+    name: "{{ item }}"
+    state: latest
+  with_items:
+  - nova-compute-kvm
+  - neutron-plugin-ml2
+  - neutron-linuxbridge-agent
+  - ceph-common
+
+- name: create ceph config folder
+  file:
+    path: /etc/ceph/ceph.conf.d
+    state: directory
+
+- name: wait for ceph global config
+  local_action:
+    module: wait_for
+    path: /var/lib/ansible/ceph/ceph-global.conf
+
+- name: copy ceph global config
+  copy:
+    src: /var/lib/ansible/ceph/ceph-global.conf
+    dest: /etc/ceph/ceph.conf.d/ceph-global.conf
+
+- name: assemble ceph config
+  assemble:
+    src: /etc/ceph/ceph.conf.d
+    dest: /etc/ceph/ceph.conf
+
+- name: wait for nova client keyring
+  local_action:
+    module: wait_for
+    path: /var/lib/ansible/ceph/nova.keyring
+
+- name: copy nova client keyring
+  copy:
+    src: /var/lib/ansible/ceph/nova.keyring
+    dest: /etc/ceph/ceph.client.nova.keyring
+
+- name: update nova client keyring file ownership
+  file:
+    path: /etc/ceph/ceph.client.nova.keyring
+    owner: nova
+    group: nova
+
+- name: start libvirtd service
+  service:
+    name: libvirtd
+    state: started
+
+- name: create libvirt secret file
+  shell: |
+    echo "<secret ephemeral='no' private='no'><uuid>{{ nova_rbd_secret_uuid }}</uuid><usage type='ceph'><name>client.nova secret</name></usage></secret>" > /tmp/rbd-secret.xml
+  changed_when: false
+
+- name: update libvirt secret definetion
+  shell: >
+    /usr/bin/virsh
+    secret-define
+    --file /tmp/rbd-secret.xml
+  changed_when: false
+
+- name: update libvirt secret value
+  shell: >
+    /usr/bin/virsh
+    secret-set-value
+    --secret "{{ nova_rbd_secret_uuid }}"
+    --base64 $(cat /etc/ceph/ceph.client.nova.keyring | awk '/key/{print $3}')
+  changed_when: false
+
+- name: update nova config
+  template:
+    src: nova.conf.j2
+    dest: /etc/nova/nova.conf
+  notify:
+  - restart nova-compute service
+
+- name: remove nova-compute config
+  file:
+    path: /etc/nova/nova-compute.conf
+    state: absent
+  notify:
+  - restart nova-compute service
+
+- name: update neutron config
+  template:
+    src: neutron.conf.j2
+    dest: /etc/neutron/neutron.conf
+  notify:
+  - restart neutron-linuxbridge-agent service
+
+- name: update ml2 plugin config
+  template:
+    src: ml2_conf.ini.j2
+    dest: /etc/neutron/plugins/ml2/ml2_conf.ini
+  notify:
+  - restart neutron-linuxbridge-agent service
+
+- name: update linuxbridge agent config
+  template:
+    src: linuxbridge_agent.ini.j2
+    dest: /etc/neutron/plugins/ml2/linuxbridge_agent.ini
+  notify:
+  - restart neutron-linuxbridge-agent service
+
+- name: enable libvirtd service
+  service:
+    name: libvirtd
+    enabled: yes
+
+- name: enable nova-compute service
+  service:
+    name: nova-compute
+    enabled: yes
+
+- name: enable neutron-linuxbridge-agent service
+  service:
+    name: neutron-linuxbridge-agent
+    enabled: yes
+
+- name: run queued handlers
+  meta:
+    flush_handlers

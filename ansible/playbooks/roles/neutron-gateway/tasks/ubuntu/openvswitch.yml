@@ -1,0 +1,116 @@
+---
+
+- name: install software packages
+  apt:
+    name: "{{ item }}"
+    state: latest
+  with_items:
+  - neutron-l3-agent
+  - neutron-dhcp-agent
+  - neutron-metadata-agent
+  - neutron-plugin-ml2
+  - neutron-openvswitch-agent
+
+- name: start openvswitch service
+  service:
+    name: openvswitch-switch
+    state: started
+
+- name: create data bridge
+  openvswitch_bridge:
+    bridge: br-dat
+    state: present
+
+- name: add data bridge interface
+  openvswitch_port:
+    bridge: br-dat
+    port: eth-data
+    state: present
+
+- name: create external bridge
+  openvswitch_bridge:
+    bridge: br-ext
+    state: present
+
+- name: add external bridge interface
+  openvswitch_port:
+    bridge: br-ext
+    port: eth-external
+    state: present
+
+- name: update neutron config
+  template:
+    src: neutron.conf.j2
+    dest: /etc/neutron/neutron.conf
+  notify:
+  - restart neutron-openvswitch-agent service
+  - restart neutron-metadata-agent service
+  - restart neutron-dhcp-agent service
+  - restart neutron-l3-agent service
+
+- name: update ml2 plugin config
+  template:
+    src: ml2_conf.ini.j2
+    dest: /etc/neutron/plugins/ml2/ml2_conf.ini
+  notify:
+  - restart neutron-openvswitch-agent service
+  - restart neutron-metadata-agent service
+  - restart neutron-dhcp-agent service
+  - restart neutron-l3-agent service
+
+- name: update openvswitch agent config
+  template:
+    src: openvswitch_agent.ini.j2
+    dest: /etc/neutron/plugins/ml2/openvswitch_agent.ini
+  notify:
+  - restart neutron-openvswitch-agent service
+
+- name: update metadata agent config
+  template:
+    src: metadata_agent.ini.j2
+    dest: /etc/neutron/metadata_agent.ini
+  notify:
+  - restart neutron-metadata-agent service
+
+- name: update dhcp agent config
+  template:
+    src: dhcp_agent.ini.j2
+    dest: /etc/neutron/dhcp_agent.ini
+  notify:
+  - restart neutron-dhcp-agent service
+
+- name: update l3 agent config
+  template:
+    src: l3_agent.ini.j2
+    dest: /etc/neutron/l3_agent.ini
+  notify:
+  - restart neutron-l3-agent service
+
+- name: enable openvswitch service
+  service:
+    name: openvswitch-switch
+    enabled: yes
+
+- name: enable neutron-openvswitch-agent service
+  service:
+    name: neutron-openvswitch-agent
+    enabled: yes
+
+- name: enable neutron-metadata-agent service
+  service:
+    name: neutron-metadata-agent
+    enabled: yes
+
+- name: enable neutron-dhcp-agent service
+  service:
+    name: neutron-dhcp-agent
+    enabled: yes
+
+- name: enable neutron-l3-agent service
+  service:
+    name: neutron-l3-agent
+    enabled: yes
+
+- name: run queued handlers
+  meta:
+    flush_handlers

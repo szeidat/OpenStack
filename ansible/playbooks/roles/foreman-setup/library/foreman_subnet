@@ -1,0 +1,107 @@
+#!/bin/bash
+
+# List resource
+function resource_list
+{
+  output=$(hammer subnet list | awk '/[0-9]/' 2>&1)
+  if [ $? -ne 0 ]; then
+    jq -n -c -M --arg msg "error getting resource list: $output" '{failed: true, msg: $msg}'
+    exit 1
+  fi
+}
+
+# Create resource
+function resource_create
+{
+  if [ -n "$gateway" ]; then command_gateway="--gateway \"$gateway\""; fi
+  if [ -n "$ip_start" ]; then command_from="--from \"$ip_start\""; fi
+  if [ -n "$ip_end" ]; then command_to="--to \"$ip_end\""; fi
+  if [ -n "$dns_server" ]; then command_dns="--dns-primary \"$dns_server\""; fi
+  if [ -n "$domain" ]; then command_domain="--domains \"$domain\""; fi
+  if [ -n "$dns_proxy" ]; then
+    output_proxy=$(hammer proxy list | grep -F "$dns_proxy")
+    if [ $? -ne 0 ]; then
+      jq -n -c -M --arg msg "error getting resource list: $output_proxy" '{failed: true, msg: $msg}'
+      exit 1
+    fi
+    proxy_id=$(echo "$output_proxy" | awk '{print $1}')
+    command_proxy="--dns-id \"$proxy_id\""
+  fi
+
+  output=$(echo subnet create --name "$name" --network-type IPv4 --network "$network" --mask "$netmask" --boot-mode "$boot_mode" --ipam \"$ipam\" "$command_gateway" "$command_from" "$command_to" "$command_dns" "$command_domain" "$command_proxy" | xargs hammer 2>&1)
+  if [ $? -ne 0 ]; then
+    jq -n -c -M --arg msg "error creating resource: $output" '{failed: true, msg: $msg}'
+    exit 1
+  fi
+}
+
+# Delete resource
+function resource_delete
+{
+  output=$(hammer subnet delete --id "$id" 2>&1)
+  if [ $? -ne 0 ]; then
+    jq -n -c -M --arg msg "error deleting resource: $output" '{failed: true, msg: $msg}'
+    exit 1
+  fi
+}
+
+# Read variables
+state=present
+boot_mode=Static
+ipam=None
+gateway=
+ip_start=
+ip_end=
+dns_server=
+proxy=
+domain=
+source $1
+
+# Validate variables
+if [ -z "$name" ]; then
+  jq -n -c -M '{failed: true, msg: "missing required arguments: name"}'
+  exit 1
+fi
+
+if [ -z "$network" ]; then
+  jq -n -c -M' {failed: true, msg: "missing required arguments: network"}'
+  exit 1
+fi
+
+if [ -z "$netmask" ]; then
+  jq -n -c -M' {failed: true, msg: "missing required arguments: netmask"}'
+  exit 1
+fi
+
+# Set requested state
+case $state in
+  present )
+  resource_list
+  if [ -z "$(echo "$output" | grep -F "$name")" ]; then
+    resource_create
+    jq -n -c -M --arg msg "$output" '{changed: true, msg: $msg}'
+    exit 0
+  else
+    jq -n -c -M --arg msg "$output" '{changed: false, msg: $msg}'
+    exit 0
+  fi
+  ;;
+
+  absent )
+  resource_list
+  if [ -z "$(echo "$output" | grep -F "$name")" ]; then
+    jq -n -c -M --arg msg "$output" '{changed: false, msg: $msg}'
+    exit 0
+  else
+    id=$(echo "$output" | awk '/'"$name"'/{print $1}')
+    resource_delete
+    jq -n -c -M --arg msg "$output" '{changed: true, msg: $msg}'
+    exit 0
+  fi
+  ;;
+
+  * )
+  jq -n -c -M --arg msg "invalid state: $state" '{failed: true, msg: $msg}'
+  exit 1
+  ;;
+esac

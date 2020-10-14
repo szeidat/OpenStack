@@ -1,0 +1,51 @@
+---
+
+- name: install software packages
+  zypper:
+    name: "{{ item }}"
+    state: latest
+  with_items:
+  - openstack-nova-compute
+  - openstack-neutron-vsphere-dvs-agent
+
+- name: update default plugin link
+  file:
+    src: /etc/neutron/plugins/ml2/ml2_conf.ini
+    dest: /etc/neutron/plugin.ini
+    state: link
+    force: yes
+
+- name: update nova config
+  template:
+    src: nova.conf.j2
+    dest: /etc/nova/nova.conf
+  notify:
+  - restart openstack-nova-compute service
+
+- name: update neutron config
+  template:
+    src: neutron.conf.j2
+    dest: /etc/neutron/neutron.conf
+  notify:
+  - restart openstack-neutron-dvs-agent service
+
+- name: update dvs agent config
+  template:
+    src: ml2_conf_vmware_dvs.ini.j2
+    dest: /etc/neutron/plugins/ml2/vmware_dvs_agent.ini
+  notify:
+  - restart openstack-neutron-dvs-agent service
+
+- name: enable openstack-nova-compute service
+  service:
+    name: openstack-nova-compute
+    enabled: yes
+
+- name: enable openstack-neutron-dvs-agent service
+  service:
+    name: openstack-neutron-dvs-agent
+    enabled: yes
+
+- name: run queued handlers
+  meta:
+    flush_handlers

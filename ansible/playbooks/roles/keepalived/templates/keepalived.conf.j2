@@ -1,0 +1,47 @@
+! {{ ansible_managed }}
+
+global_defs {
+  router_id {{ inventory_hostname }}
+}
+
+vrrp_script haproxy {
+  script "killall -0 haproxy"
+  interval 2
+  weight 2
+}
+
+vrrp_instance management {
+  virtual_router_id 10
+  advert_int 1
+  priority 1
+  state BACKUP
+  interface eth-management
+  authentication {
+    auth_type PASS
+    auth_pass {{ keepalived_auth_password }}
+  }
+  virtual_ipaddress {
+    {{ stack_management_ipaddress }} dev eth-management
+  }
+  track_script {
+    haproxy
+  }
+}
+
+vrrp_instance access {
+  virtual_router_id 20
+  advert_int 1
+  priority 1
+  state BACKUP
+  interface eth-access
+  authentication {
+    auth_type PASS
+    auth_pass {{ keepalived_auth_password }}
+  }
+  virtual_ipaddress {
+    {{ stack_access_ipaddress }} dev eth-access
+  }
+  track_script {
+    haproxy
+  }
+}

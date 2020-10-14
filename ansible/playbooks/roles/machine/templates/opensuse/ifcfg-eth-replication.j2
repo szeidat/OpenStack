@@ -1,0 +1,8 @@
+# {{ ansible_managed }}
+
+DEVICE=eth-replication
+BOOTPROTO=static
+IPADDR={{ replication_ipaddress }}
+NETMASK={{ replication_netmask }}
+STARTMODE=auto
+USERCONTROL=no

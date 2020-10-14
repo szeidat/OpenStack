@@ -1,0 +1,67 @@
+---
+
+- name: install software packages
+  apt:
+    name: "{{ item }}"
+    state: latest
+  with_items:
+  - neutron-plugin-ml2
+  - neutron-linuxbridge-agent
+  - manila-share
+  - python-pymysql
+
+- name: copy manila ssh private key
+  copy:
+    src: id_rsa
+    dest: /etc/manila/id_rsa
+    owner: manila
+    group: manila
+
+- name: copy manila ssh public key
+  copy:
+    src: id_rsa.pub
+    dest: /etc/manila/id_rsa.pub
+    owner: manila
+    group: manila
+
+- name: update neutron config
+  template:
+    src: neutron.conf.j2
+    dest: /etc/neutron/neutron.conf
+  notify:
+  - restart neutron-linuxbridge-agent service
+
+- name: update ml2 plugin config
+  template:
+    src: ml2_conf.ini.j2
+    dest: /etc/neutron/plugins/ml2/ml2_conf.ini
+  notify:
+  - restart neutron-linuxbridge-agent service
+
+- name: update linuxbridge agent config
+  template:
+    src: linuxbridge_agent.ini.j2
+    dest: /etc/neutron/plugins/ml2/linuxbridge_agent.ini
+  notify:
+  - restart neutron-linuxbridge-agent service
+
+- name: update manila config
+  template:
+    src: manila.conf.j2
+    dest: /etc/manila/manila.conf
+  notify:
+  - restart manila-share service
+
+- name: enable neutron-linuxbridge-agent service
+  service:
+    name: neutron-linuxbridge-agent
+    enabled: yes
+
+- name: enable manila-share service
+  service:
+    name: manila-share
+    enabled: yes
+
+- name: run queued handlers
+  meta:
+    flush_handlers

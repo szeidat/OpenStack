@@ -1,0 +1,67 @@
+---
+
+- name: create {{ machine.name }}
+  vmware_guest:
+    hostname: {{ vcenter_host }}
+    username: {{ vcenter_user }}
+    password: {{ vcenter_password }}
+    validate_certs: no
+    datacenter: {{ vcenter_datacenter }}
+    cluster: {{ machine.cluster }}
+    folder: "/{{ vcenter_vm_machines_folder }}"
+    name: {{ machine.name }}
+    state: poweredon
+    template: "{{ vcenter_centos_vm_template }}"
+    customization:
+      domain: {{ management_domain }}
+      dns_servers:
+      - {{ master_management_ipaddress }}
+    hardware:
+      num_cpus: {{ machine.cpus }}
+      memory_mb: {{ machine.memory_mb }}
+    networks:
+{% for nic in machine.nics %}
+{% if nic.network == 'management' %}
+    - name: {{ vcenter_management_portgroup }}
+      device_type: e1000
+      ip: {{ nic.ipaddress }}
+      netmask: {{ management_netmask }}
+      gateway: {{ management_gateway }}
+{% elif nic.network == 'access' %}
+    - name: {{ vcenter_access_portgroup }}
+      device_type: e1000
+      ip: 0.0.0.0
+      netmask: 0.0.0.0
+{% elif nic.network == 'external' %}
+    - name: {{ vcenter_external_portgroup }}
+      device_type: e1000
+      ip: 0.0.0.0
+      netmask: 0.0.0.0
+{% elif nic.network == 'data' %}
+    - name: {{ vcenter_data_portgroup }}
+      device_type: e1000
+      ip: 0.0.0.0
+      netmask: 0.0.0.0
+{% elif nic.network == 'storage' %}
+    - name: {{ vcenter_storage_portgroup }}
+      device_type: e1000
+      ip: 0.0.0.0
+      netmask: 0.0.0.0
+{% elif nic.network == 'replication' %}
+    - name: {{ vcenter_replication_portgroup }}
+      device_type: e1000
+      ip: 0.0.0.0
+      netmask: 0.0.0.0
+{% elif nic.network == 'security' %}
+    - name: {{ vcenter_security_portgroup }}
+      device_type: e1000
+      ip: 0.0.0.0
+      netmask: 0.0.0.0
+{% endif %}
+{% endfor %}
+    disk:
+{% for disk in machine.disks %}
+    - size_gb: {{ disk.size_gb }}
+      type: thin
+      datastore: {{ machine.datastore }}
+{% endfor %}

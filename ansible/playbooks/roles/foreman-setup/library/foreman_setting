@@ -1,0 +1,47 @@
+#!/bin/bash
+
+# Gather setting
+function setting_gather
+{
+  output=$(hammer --csv settings list | sed -e 's/\"//g' | grep -F "$name" 2>&1)
+  if [ $? -ne 0 ]; then
+    jq -n -c -M --arg msg "error getting setting: $output" '{failed: true, msg: $msg}'
+    exit 1
+  fi
+}
+
+# Change setting
+function setting_change
+{
+  output=$(hammer settings set --name "$name" --value "$value" 2>&1)
+  if [ $? -ne 0 ]; then
+    jq -n -c -M --arg msg "error changing setting: $output" '{failed: true, msg: $msg}'
+    exit 1
+  fi
+}
+
+# Read variables
+source $1
+
+# Validate variables
+if [ -z "$name" ]; then
+  jq -n -c -M '{failed: true, msg: "missing required arguments: name"}'
+  exit 1
+fi
+
+if [ -z "$value" ]; then
+  jq -n -c -M' {failed: true, msg: "missing required arguments: value"}'
+  exit 1
+fi
+
+# Set requested value
+setting_gather
+if [ "$(echo "$output" | awk -F, '{print $2}')" != "$value" ]; then
+  setting_change
+  jq -n -c -M --arg msg "$output" '{changed: true, msg: $msg}'
+  exit 0
+else
+  jq -n -c -M --arg msg "$output" '{changed: false, msg: $msg}'
+  exit 0
+fi
+

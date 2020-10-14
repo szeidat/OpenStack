@@ -1,0 +1,10 @@
+# {{ ansible_managed }}
+
+DEVICE=eth-storage
+BOOTPROTO=static
+IPADDR={{ storage_ipaddress }}
+NETMASK={{ storage_netmask }}
+STARTMODE=auto
+USERCONTROL=no
+POST_UP_SCRIPT=compat:suse:ifup-eth-storage
+POST_DOWN_SCRIPT=compat:suse:ifdown-eth-storage

@@ -1,0 +1,13 @@
+# {{ ansible_managed }}
+
+# openstack variables
+export OS_USERNAME=admin
+export OS_PASSWORD={{ keystone_admin_password }}
+export OS_PROJECT_NAME=admin
+export OS_USER_DOMAIN_ID=default
+export OS_PROJECT_DOMAIN_ID=default
+export OS_AUTH_URL={% if stack_ssl_enabled %}https{% else %}http{% endif %}://{{ stack_management_ipaddress }}:35357/v3
+export OS_REGION_NAME={{ keystone_region_name }}
+export OS_IDENTITY_API_VERSION=3
+export OS_IMAGE_API_VERSION=2
+export OS_CACERT=/etc/ssl/certs/ca-bundle.crt

@@ -1,0 +1,266 @@
+---
+
+- name: install software packages
+  zypper:
+    name: "{{ item }}"
+    state: latest
+  with_items:
+  - ceph-mon
+  - jq
+
+- name: create ceph-mon service override folder
+  file:
+    path: /etc/systemd/system/ceph-mon@.service.d
+    state: directory
+  when: lxd_ceph_service_override is defined and lxd_ceph_service_override
+  notify:
+  - systemd daemon reload
+
+- name: create ceph-mon service override
+  copy:
+    src: ceph.override.conf
+    dest: /etc/systemd/system/ceph-mon@.service.d/override.conf
+  when: lxd_ceph_service_override is defined and lxd_ceph_service_override
+  notify:
+  - systemd daemon reload
+
+- name: create local ceph folder
+  local_action:
+    module: file
+    path: /var/lib/ansible/ceph
+    state: directory
+  run_once: true
+
+- name: update ceph global config
+  local_action:
+    module: template
+    src: ceph-global.conf.j2
+    dest: /var/lib/ansible/ceph/ceph-global.conf
+  run_once: true
+
+- name: create ceph config folder
+  file:
+    path: /etc/ceph/ceph.conf.d
+    state: directory
+
+- name: wait for ceph global config
+  local_action:
+    module: wait_for
+    path: /var/lib/ansible/ceph/ceph-global.conf
+    
+- name: copy ceph global conf
+  copy:
+    src: /var/lib/ansible/ceph/ceph-global.conf
+    dest: /etc/ceph/ceph.conf.d/ceph-global.conf
+
+- name: update ceph mon config
+  template:
+    src: ceph-mon.conf.j2
+    dest: /etc/ceph/ceph.conf.d/ceph-mon.conf
+
+- name: assemble ceph config
+  assemble:
+    src: /etc/ceph/ceph.conf.d
+    dest: /etc/ceph/ceph.conf
+  notify:
+  - restart ceph-mon service
+
+- name: create monitors keyring
+  command: >
+    /usr/bin/ceph-authtool
+    --create-keyring /etc/ceph/ceph.mon.keyring
+    --gen-key
+    --name mon.
+    --cap mon 'allow *'
+  args:
+    creates: /etc/ceph/ceph.mon.keyring
+  run_once: true
+
+- name: fetch monitors keyring
+  fetch:
+    src: /etc/ceph/ceph.mon.keyring
+    dest: /var/lib/ansible/ceph/mons.keyring
+    flat: yes
+  run_once: true
+
+- name: wait for monitors keyring
+  local_action:
+    module: wait_for
+    path: /var/lib/ansible/ceph/mons.keyring
+
+- name: copy monitors keyring
+  copy:
+    src: /var/lib/ansible/ceph/mons.keyring
+    dest: /etc/ceph/ceph.mon.keyring
+
+- name: create monitor data directory
+  command: >
+    /usr/bin/ceph-mon
+    --mkfs
+    --cluster ceph
+    --fsid "{{ ceph_cluster_fsid }}"
+    --id "{{ inventory_hostname_short }}"
+    --keyring /etc/ceph/ceph.mon.keyring
+  args:
+    creates: "/var/lib/ceph/mon/ceph-{{ inventory_hostname_short }}/keyring"
+  notify:
+  - restart ceph-mon service
+
+- name: update ceph directory ownership
+  file:
+    path: /var/lib/ceph
+    state: directory
+    recurse: yes
+    owner: ceph
+    group: ceph
+
+- name: enable ceph-mon service
+  service:
+    name: "ceph-mon@{{ inventory_hostname_short }}"
+    enabled: yes
+
+- name: run queued handlers
+  meta:
+    flush_handlers
+
+- name: create admin client keyring
+  command: >
+    /usr/sbin/ceph-create-keys
+    --cluster ceph
+    --id "{{ inventory_hostname_short }}"
+  args:
+    creates: /etc/ceph/ceph.client.admin.keyring
+  run_once: true
+
+- name: fetch admin client keyring
+  fetch:
+    src: /etc/ceph/ceph.client.admin.keyring
+    dest: /var/lib/ansible/ceph/admin.keyring
+    flat: yes
+  run_once: true
+
+- name: create osd bootstrap keyring
+  command: >
+    /usr/sbin/ceph-create-keys
+    --cluster ceph
+    --id "{{ inventory_hostname_short }}"
+  args:
+    creates: /var/lib/ceph/bootstrap-osd/ceph.keyring
+  run_once: true
+
+- name: fetch osd bootstrap keyring
+  fetch:
+    src: /var/lib/ceph/bootstrap-osd/ceph.keyring
+    dest: /var/lib/ansible/ceph/osd.keyring
+    flat: yes
+  run_once: true
+
+- name: create mds bootstrap keyring
+  command: >
+    /usr/sbin/ceph-create-keys
+    --cluster ceph
+    --id "{{ inventory_hostname_short }}"
+  args:
+    creates: /var/lib/ceph/bootstrap-mds/ceph.keyring
+  run_once: true
+
+- name: fetch mds bootstrap keyring
+  fetch:
+    src: /var/lib/ceph/bootstrap-mds/ceph.keyring
+    dest: /var/lib/ansible/ceph/mds.keyring
+    flat: yes
+  run_once: true
+
+- name: create rgw bootstrap keyring
+  command: >
+    /usr/sbin/ceph-create-keys
+    --cluster ceph
+    --id "{{ inventory_hostname_short }}"
+  args:
+    creates: /var/lib/ceph/bootstrap-rgw/ceph.keyring
+  run_once: true
+
+- name: fetch rgw bootstrap keyring
+  fetch:
+    src: /var/lib/ceph/bootstrap-rgw/ceph.keyring
+    dest: /var/lib/ansible/ceph/rgw.keyring
+    flat: yes
+  run_once: true
+
+- name: create glance client keyring
+  command: >
+    /usr/bin/ceph
+    auth get-or-create client.glance
+    mon 'allow r'
+    osd 'allow class-read object_prefix rbd_children, allow rwx pool=images'
+    --out-file /etc/ceph/ceph.client.glance.keyring
+  args:
+    creates: /etc/ceph/ceph.client.glance.keyring
+  run_once: true
+
+- name: fetch glance client keyring
+  fetch:
+    src: /etc/ceph/ceph.client.glance.keyring
+    dest: /var/lib/ansible/ceph/glance.keyring
+    flat: yes
+  run_once: true
+
+- name: create glance images pool
+  ceph_pool:
+    name: images
+    pg_num: "{{ ceph_osd_pool_default_pg_num }}"
+  run_once: true
+
+- name: create nova client keyring
+  command: >
+    /usr/bin/ceph
+    auth get-or-create client.nova
+    mon 'allow r'
+    osd 'allow class-read object_prefix rbd_children, allow rwx pool=volumes, allow rwx pool=vms, allow rwx pool=images'
+    --out-file /etc/ceph/ceph.client.nova.keyring
+  args:
+    creates: /etc/ceph/ceph.client.nova.keyring
+  run_once: true
+
+- name: fetch nova client keyring
+  fetch:
+    src: /etc/ceph/ceph.client.nova.keyring
+    dest: /var/lib/ansible/ceph/nova.keyring
+    flat: yes
+  run_once: true
+
+- name: create nova vms pool
+  ceph_pool:
+    name: vms
+    pg_num: "{{ ceph_osd_pool_default_pg_num }}"
+  run_once: true
+
+- name: create cinder client keyring
+  command: >
+    /usr/bin/ceph
+    auth get-or-create client.cinder
+    mon 'allow r'
+    osd 'allow class-read object_prefix rbd_children, allow rwx pool=volumes, allow rwx pool=backups, allow rwx pool=images'
+    --out-file /etc/ceph/ceph.client.cinder.keyring
+  args:
+    creates: /etc/ceph/ceph.client.cinder.keyring
+  run_once: true
+
+- name: fetch cinder client keyring
+  fetch:
+    src: /etc/ceph/ceph.client.cinder.keyring
+    dest: /var/lib/ansible/ceph/cinder.keyring
+    flat: yes
+  run_once: true
+
+- name: create cinder volumes pool
+  ceph_pool:
+    name: volumes
+    pg_num: "{{ ceph_osd_pool_default_pg_num }}"
+  run_once: true
+
+- name: create cinder backups pool
+  ceph_pool:
+    name: backups
+    pg_num: "{{ ceph_osd_pool_default_pg_num }}"
+  run_once: true

@@ -1,0 +1,146 @@
+---
+
+- name: deploy storage managers
+  hosts: storage-manager
+  tags: storage-manager
+  roles:
+  - name: machine
+    tags: machine
+  - name: ntp-client
+    tags: ntp-client
+  - name: rsyslog
+    tags: rsyslog
+  - name: ceph-monitor
+    tags: ceph-monitor
+  - name: ceph-metadata
+    tags: ceph-metadata
+
+- name: deploy storage backends
+  hosts: storage-backend
+  tags: storage-backend
+  roles:
+  - name: machine
+    tags: machine
+  - name: ntp-client
+    tags: ntp-client
+  - name: rsyslog
+    tags: rsyslog
+  - name: ceph-storage
+    tags: ceph-storage
+
+- name: deploy load balancers
+  hosts: load-balancer
+  tags: load-balancer
+  roles:
+  - name: machine
+    tags: machine
+  - name: ntp-client
+    tags: ntp-client
+  - name: rsyslog
+    tags: rsyslog
+  - name: keepalived
+    tags: keepalived
+  - name: haproxy
+    tags: haproxy
+
+- name: deploy database and messaging
+  hosts: database-messaging
+  tags: database-messaging
+  roles:
+  - name: machine
+    tags: machine
+  - name: ntp-client
+    tags: ntp-client
+  - name: rsyslog
+    tags: rsyslog
+  - name: mariadb
+    tags: mariadb
+  - name: rabbitmq
+    tags: rabbitmq
+
+- name: deploy cloud controllers
+  hosts: cloud-controller
+  tags: cloud-controller
+  roles:
+  - name: machine
+    tags: machine
+  - name: ntp-client
+    tags: ntp-client
+  - name: rsyslog
+    tags: rsyslog
+  - name: memcached
+    tags: memcached
+  - name: keystone
+    tags: keystone
+  - name: glance
+    tags: glance
+  - name: nova
+    tags: nova
+  - name: neutron
+    tags: neutron
+  - name: horizon
+    tags: horizon
+  - name: ceph-gateway
+    tags: ceph-gateway
+  - name: cinder
+    tags: cinder
+  - name: manila
+    tags: manila
+  - name: heat
+    tags: heat
+  - name: magnum
+    tags: magnum
+  - name: trove
+    tags: trove
+
+- name: deploy networking gateways
+  hosts: networking-gateway
+  tags: networking-gateway
+  roles:
+  - name: machine
+    tags: machine
+  - name: ntp-client
+    tags: ntp-client
+  - name: rsyslog
+    tags: rsyslog
+  - name: neutron-gateway
+    tags: neutron-gateway
+
+- name: deploy compute providers
+  hosts: compute-provider
+  tags: compute-provider
+  roles:
+  - name: machine
+    tags: machine
+  - name: ntp-client
+    tags: ntp-client
+  - name: rsyslog
+    tags: rsyslog
+  - name: nova-compute
+    tags: nova-compute
+
+- name: deploy volume providers
+  hosts: volume-provider
+  tags: volume-provider
+  roles:
+  - name: machine
+    tags: machine
+  - name: ntp-client
+    tags: ntp-client
+  - name: rsyslog
+    tags: rsyslog
+  - name: cinder-volume
+    tags: cinder-volume
+
+- name: deploy share providers
+  hosts: share-provider
+  tags: share-provider
+  roles:
+  - name: machine
+    tags: machine
+  - name: ntp-client
+    tags: ntp-client
+  - name: rsyslog
+    tags: rsyslog
+  - name: manila-share
+    tags: manila-share

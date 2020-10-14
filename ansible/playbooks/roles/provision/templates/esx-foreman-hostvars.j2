@@ -1,0 +1,14 @@
+{% for nic in machine.nics %}
+{% if nic.ipaddress is defined %}
+{{ nic.network }}_ipaddress: {{ nic.ipaddress }}
+{% endif %}
+{% if machine.provision %}
+{% set hostinfo = machine_facts.stdout | from_json %}
+{{ nic.network }}_macaddress: {{ hostinfo['Network interfaces'][loop.index|string]['MAC address'] }}
+{% else %}
+{{ nic.network }}_macaddress: {{ nic.macaddress }}
+{% endif %}
+{% endfor %}
+{% if machine.parameters is defined %}
+{{ machine.parameters | to_nice_yaml }}
+{% endif %}

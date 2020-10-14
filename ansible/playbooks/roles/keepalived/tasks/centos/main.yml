@@ -1,0 +1,29 @@
+---
+
+- name: install software packages
+  yum:
+    name: keepalived
+    state: latest
+
+- name: update sysctl config
+  copy:
+    src: nonlocal-bind.conf
+    dest: /etc/sysctl.d/20-nonlocal-bind.conf
+  notify:
+  - apply sysctl config
+
+- name: update keepalived config
+  template:
+    src: keepalived.conf.j2
+    dest: /etc/keepalived/keepalived.conf
+  notify:
+  - restart keepalived service
+
+- name: enable keepalived service
+  service:
+    name: keepalived
+    enabled: yes
+
+- name: run queued handlers
+  meta:
+    flush_handlers

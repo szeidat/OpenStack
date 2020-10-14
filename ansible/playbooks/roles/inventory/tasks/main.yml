@@ -1,0 +1,6 @@
+---
+
+- name: update ansible inventory
+  template:
+    src: hosts.j2
+    dest: "{{ work_folder }}/inventory/hosts"

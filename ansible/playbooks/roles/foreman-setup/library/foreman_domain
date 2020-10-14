@@ -1,0 +1,79 @@
+#!/bin/bash
+
+# List resource
+function resource_list
+{
+  output=$(hammer domain list | awk '/[0-9]/' 2>&1)
+  if [ $? -ne 0 ]; then
+    jq -n -c -M --arg msg "error getting resource list: $output" '{failed: true, msg: $msg}'
+    exit 1
+  fi
+}
+
+# Create resource
+function resource_create
+{
+  output=$(hammer domain create --name "$name" --dns "$proxy" 2>&1)
+  if [ $? -ne 0 ]; then
+    jq -n -c -M --arg msg "error creating resource: $output" '{failed: true, msg: $msg}'
+    exit 1
+  fi
+}
+
+# Delete resource
+function resource_delete
+{
+  output=$(hammer domain delete --id "$id" 2>&1)
+  if [ $? -ne 0 ]; then
+    jq -n -c -M --arg msg "error deleting resource: $output" '{failed: true, msg: $msg}'
+    exit 1
+  fi
+}
+
+# Read variables
+state=present
+source $1
+
+# Validate variables
+if [ -z "$name" ]; then
+  jq -n -c -M '{failed: true, msg: "missing required arguments: name"}'
+  exit 1
+fi
+
+if [ -z "$proxy" ]; then
+  jq -n -c -M '{failed: true, msg: "missing required arguments: proxy"}'
+  exit 1
+fi
+
+# Set requested state
+case $state in
+  present )
+  resource_list
+  if [ -z "$(echo "$output" | grep -F "$name")" ]; then
+    resource_create
+    jq -n -c -M --arg msg "$output" '{changed: true, msg: $msg}'
+    exit 0
+  else
+    jq -n -c -M --arg msg "$output" '{changed: false, msg: $msg}'
+    exit 0
+  fi
+  ;;
+
+  absent )
+  resource_list
+  if [ -z "$(echo "$output" | grep -F "$name")" ]; then
+    jq -n -c -M --arg msg "$output" '{changed: false, msg: $msg}'
+    exit 0
+  else
+    id=$(echo "$output" | awk '/'"$name"'/{print $1}')
+    resource_delete
+    jq -n -c -M --arg msg "$output" '{changed: true, msg: $msg}'
+    exit 0
+  fi
+  ;;
+
+  * )
+  jq -n -c -M --arg msg "invalid state: $state" '{failed: true, msg: $msg}'
+  exit 1
+  ;;
+esac

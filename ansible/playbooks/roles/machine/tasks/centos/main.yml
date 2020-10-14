@@ -1,0 +1,198 @@
+---
+
+- name: update system yum repo
+  template:
+    src: centos/centos.repo.j2
+    dest: /etc/yum.repos.d/centos.repo
+
+- name: copy cloud yum repo key
+  copy:
+    src: centos/cloud.key
+    dest: /tmp/cloud.key
+
+- name: copy storage yum repo key
+  copy:
+    src: centos/storage.key
+    dest: /tmp/storage.key
+
+- name: copy virt yum repo key
+  copy:
+    src: centos/virt.key
+    dest: /tmp/virt.key
+
+- name: add cloud yum repo key
+  rpm_key:
+    key: /tmp/cloud.key
+
+- name: add storage yum repo key
+  rpm_key:
+    key: /tmp/storage.key
+
+- name: add virt yum repo key
+  rpm_key:
+    key: /tmp/virt.key
+
+- name: update cloud yum repo
+  template:
+    src: centos/cloud.repo.j2
+    dest: /etc/yum.repos.d/cloud.repo
+
+- name: update storage yum repo
+  template:
+    src: centos/storage.repo.j2
+    dest: /etc/yum.repos.d/storage.repo
+
+- name: update virt yum repo
+  template:
+    src: centos/virt.repo.j2
+    dest: /etc/yum.repos.d/virt.repo
+
+- name: update packages
+  yum:
+    name: '*'
+    state: latest
+    update_cache: yes
+
+- name: update hosts file
+  template:
+    src: hosts.j2
+    dest: /etc/hosts
+
+- name: update hostname file
+  template:
+    src: hostname.j2
+    dest: /etc/hostname
+
+- name: update udev rules
+  template:
+    src: persistent-net.rules.j2
+    dest: /etc/udev/rules.d/70-persistent-net.rules
+  notify:
+  - reboot host
+  - wait for host
+
+- name: remove default network interfaces
+  shell: /bin/rm -f /etc/sysconfig/network-scripts/ifcfg-eth{0,1,2,3,4,5,6}
+  args:
+    removes: /etc/sysconfig/network-scripts/ifcfg-eth0
+  notify:
+  - reboot host
+  - wait for host
+
+- name: update management interface
+  template:
+    src: centos/ifcfg-eth-management.j2
+    dest: /etc/sysconfig/network-scripts/ifcfg-eth-management
+  notify:
+  - reboot host
+  - wait for host
+
+- name: update access interface
+  template:
+    src: centos/ifcfg-eth-access.j2
+    dest: /etc/sysconfig/network-scripts/ifcfg-eth-access
+  when: access_macaddress is defined
+  notify:
+  - reboot host
+  - wait for host
+
+- name: update access ip route
+  template:
+    src: centos/route-eth-access.j2
+    dest: /etc/sysconfig/network-scripts/route-eth-access
+  when: access_macaddress is defined
+  notify:
+  - reboot host
+  - wait for host
+
+- name: update access ip rule
+  template:
+    src: centos/rule-eth-access.j2
+    dest: /etc/sysconfig/network-scripts/rule-eth-access
+  when: access_macaddress is defined
+  notify:
+  - reboot host
+  - wait for host
+
+- name: update external interface
+  template:
+    src: centos/ifcfg-eth-external.j2
+    dest: /etc/sysconfig/network-scripts/ifcfg-eth-external
+  when: external_macaddress is defined
+  notify:
+  - reboot host
+  - wait for host
+
+- name: update data interface
+  template:
+    src: centos/ifcfg-eth-data.j2
+    dest: /etc/sysconfig/network-scripts/ifcfg-eth-data
+  when: data_macaddress is defined
+  notify:
+  - reboot host
+  - wait for host
+
+- name: update storage interface
+  template:
+    src: centos/ifcfg-eth-storage.j2
+    dest: /etc/sysconfig/network-scripts/ifcfg-eth-storage
+  when: storage_macaddress is defined
+  notify:
+  - reboot host
+  - wait for host
+
+- name: update storage ip route
+  template:
+    src: centos/route-eth-storage.j2
+    dest: /etc/sysconfig/network-scripts/route-eth-storage
+  when: storage_macaddress is defined
+  notify:
+  - reboot host
+  - wait for host
+
+- name: update storage ip rule
+  template:
+    src: centos/rule-eth-storage.j2
+    dest: /etc/sysconfig/network-scripts/rule-eth-storage
+  when: storage_macaddress is defined
+  notify:
+  - reboot host
+  - wait for host
+
+- name: update replication interface
+  template:
+    src: centos/ifcfg-eth-replication.j2
+    dest: /etc/sysconfig/network-scripts/ifcfg-eth-replication
+  when: replication_macaddress is defined
+  notify:
+  - reboot host
+  - wait for host
+
+- name: update security interface
+  template:
+    src: centos/ifcfg-eth-security.j2
+    dest: /etc/sysconfig/network-scripts/ifcfg-eth-security
+  when: security_macaddress is defined
+  notify:
+  - reboot host
+  - wait for host
+
+- name: update trusted certificates
+  copy:
+    src: stackca.crt
+    dest: /etc/pki/ca-trust/source/anchors/stackca.crt
+  notify:
+  - update ca trust
+
+- name: run queued handlers
+  meta:
+    flush_handlers
+
+- name: gather host facts
+  setup:
+    gather_subset: network
+
+- name: check host rebooted
+  fail:
+    msg: Looks like the host did not reboot!
+  when: "'eth-management' not in ansible_interfaces"

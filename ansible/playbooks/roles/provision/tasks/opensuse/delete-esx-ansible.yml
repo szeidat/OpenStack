@@ -1,0 +1,55 @@
+---
+
+- name: gather machine facts
+  vmware_guest_facts:
+    hostname: "{{ vcenter_host }}"
+    username: "{{ vcenter_user }}"
+    password: "{{ vcenter_password }}"
+    validate_certs: no
+    datacenter: "{{ vcenter_datacenter }}"
+    folder: "/{{ vcenter_datacenter }}/vm/{{ vcenter_vm_machines_folder }}"
+    name: "{{ machine.name }}"
+  register: machine_facts
+  changed_when: false
+  ignore_errors: true
+  when:
+  - machine.provision
+
+- name: "delete {{ machine.name }}"
+  vmware_guest:
+    hostname: "{{ vcenter_host }}"
+    username: "{{ vcenter_user }}"
+    password: "{{ vcenter_password }}"
+    validate_certs: no
+    datacenter: "{{ vcenter_datacenter }}"
+    cluster: "{{ machine.cluster }}"
+    folder: "/{{ vcenter_vm_machines_folder }}"
+    name: "{{ machine.name }}"
+    state: absent
+    force: yes
+  when:
+  - machine.provision
+  - machine_facts | success
+
+- name: delete machine dns record
+  nsupdate:
+    server: "{{ master_management_ipaddress }}"
+    zone: "{{ management_domain }}"
+    record: "{{ machine.name }}"
+    type: A
+    state: absent
+
+- name: delete machine dns ptr record
+  nsupdate:
+    server: "{{ master_management_ipaddress }}"
+    zone: "{{ management_arpa }}"
+    record: "{{ machine | json_query(query) | join | ipaddr('revdns') }}"
+    type: PTR
+    state: absent
+  vars:
+    query: "nics[?network=='management'].ipaddress"
+
+- name: delete machine host_vars file
+  file:
+    path: "{{ work_folder }}/inventory/host_vars/{{ machine.name }}.{{ management_domain }}"
+    state: absent

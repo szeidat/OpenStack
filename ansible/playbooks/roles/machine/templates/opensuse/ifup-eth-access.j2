@@ -1,0 +1,4 @@
+#!/bin/bash
+
+ip route add default via {{ access_gateway }} table 10
+ip rule add from {{ access_subnet }}/{{ access_netmask }} table 10

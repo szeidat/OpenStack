@@ -1,0 +1,10 @@
+# {{ ansible_managed }}
+
+DEVICE=eth-replication
+BOOTPROTO=static
+IPADDR={{ replication_ipaddress }}
+NETMASK={{ replication_netmask }}
+NAME=eth-replication
+TYPE=Ethernet
+NM_CONTROLLED=no
+ONBOOT=yes

@@ -1,0 +1,30 @@
+# {{ ansible_managed }}
+
+Listen {{ management_ipaddress }}:{{ horizon_web_port }}
+
+<VirtualHost *:{{ horizon_web_port }}>
+    WSGIScriptAlias / /srv/www/openstack-dashboard/openstack_dashboard/wsgi/django.wsgi
+    WSGIDaemonProcess horizon processes=5 threads=1 user=wwwrun group=www display-name=%{GROUP}
+    WSGIProcessGroup horizon
+    WSGIApplicationGroup %{GLOBAL}
+    WSGIPassAuthorization On
+
+    LogLevel warn
+    ErrorLog /var/log/horizon/horizon.log
+    CustomLog /var/log/horizon/horizon-access.log combined
+
+    DocumentRoot /srv/www/openstack-dashboard/
+    Alias /media /srv/www/openstack-dashboard/media
+    Alias /static /srv/www/openstack-dashboard/static
+
+    <Location /static>
+      ExpiresActive On
+      ExpiresDefault "access plus 1 month"
+    </Location>
+
+    <Directory /srv/www/openstack-dashboard/>
+      Options FollowSymLinks MultiViews
+      AllowOverride None
+      Require all granted
+    </Directory>
+</VirtualHost>

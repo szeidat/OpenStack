@@ -1,0 +1,13 @@
+// {{ ansible_managed }}
+
+zone "{{ management_domain }}" {
+        type master;
+        file "/var/lib/bind/db.management.{{ management_domain }}";
+        allow-update { localhost; };
+};
+
+zone "{{ management_arpa }}" {
+        type master;
+        file "/var/lib/bind/db.management.{{ management_arpa }}";
+        allow-update { localhost; };
+};

@@ -1,0 +1,72 @@
+---
+
+- name: systemd daemon reload
+  shell: systemctl daemon-reload
+
+- name: sync neutron database
+  command: >
+    /usr/bin/neutron-ovsvapp-db-manage
+    --config-file /etc/neutron/neutron.conf
+    --config-file /etc/neutron/plugins/ml2/ml2_conf.ini
+    --config-file /etc/neutron/plugins/ml2/ovsvapp_agent.ini
+    upgrade head
+  become: true
+  become_method: su
+  become_user: neutron
+  become_flags: '-s /bin/bash'
+  run_once: true
+
+- name: restart libvirtd service
+  service:
+    name: libvirtd
+    state: restarted
+
+- name: restart nova-compute service
+  service:
+    name: nova-compute
+    state: restarted
+
+- name: restart openstack-nova-compute service
+  service:
+    name: openstack-nova-compute
+    state: restarted
+
+- name: restart neutron-linuxbridge-agent service
+  service:
+    name: neutron-linuxbridge-agent
+    state: restarted
+
+- name: restart neutron-openvswitch-agent service
+  service:
+    name: neutron-openvswitch-agent
+    state: restarted
+
+- name: restart neutron-ovsvapp-agent service
+  service:
+    name: neutron-ovsvapp-agent
+    state: restarted
+
+- name: restart neutron-dvs-agent service
+  service:
+    name: neutron-dvs-agent
+    state: restarted
+
+- name: restart openstack-neutron-linuxbridge-agent service
+  service:
+    name: openstack-neutron-linuxbridge-agent
+    state: restarted
+
+- name: restart openstack-neutron-openvswitch-agent service
+  service:
+    name: openstack-neutron-openvswitch-agent
+    state: restarted
+
+- name: restart openstack-neutron-ovsvapp-agent service
+  service:
+    name: openstack-neutron-ovsvapp-agent
+    state: restarted
+
+- name: restart openstack-neutron-dvs-agent service
+  service:
+    name: openstack-neutron-dvs-agent
+    state: restarted

@@ -1,0 +1,100 @@
+---
+
+- name: install software packages
+  zypper:
+    name: "{{ item }}"
+    state: latest
+  with_items:
+  - apache2
+  - openstack-dashboard
+  - openstack-horizon-plugin-manila-ui
+  - openstack-horizon-plugin-magnum-ui
+  - openstack-horizon-plugin-trove-ui
+
+- name: copy horizon sles rpm files
+  copy:
+    src: "{{ item }}"
+    dest: /tmp
+  with_items:
+  - opensuse/suse-openstack-cloud-admin_en-7-6.5.noarch.rpm
+  - opensuse/suse-openstack-cloud-admin_en-pdf-7-6.5.noarch.rpm
+  - opensuse/suse-openstack-cloud-supplement_en-7-3.5.noarch.rpm
+  - opensuse/suse-openstack-cloud-supplement_en-pdf-7-3.5.noarch.rpm
+  - opensuse/suse-openstack-cloud-user_en-7-2.6.noarch.rpm
+  - opensuse/suse-openstack-cloud-user_en-pdf-7-2.6.noarch.rpm
+  - opensuse/openstack-dashboard-theme-SUSE-2016.2-4.11.noarch.rpm
+  when: horizon_alt_theme
+  changed_when: false
+
+- name: install software packages
+  zypper:
+    name: "{{ item }}"
+    state: latest
+    disable_gpg_check: yes
+  with_items:
+  - /tmp/suse-openstack-cloud-admin_en-7-6.5.noarch.rpm
+  - /tmp/suse-openstack-cloud-admin_en-pdf-7-6.5.noarch.rpm
+  - /tmp/suse-openstack-cloud-supplement_en-7-3.5.noarch.rpm
+  - /tmp/suse-openstack-cloud-supplement_en-pdf-7-3.5.noarch.rpm
+  - /tmp/suse-openstack-cloud-user_en-7-2.6.noarch.rpm
+  - /tmp/suse-openstack-cloud-user_en-pdf-7-2.6.noarch.rpm
+  - /tmp/openstack-dashboard-theme-SUSE-2016.2-4.11.noarch.rpm
+  when: horizon_alt_theme
+
+- name: update horizon apache2 config
+  template:
+    src: opensuse/apache2.conf.j2
+    dest: /etc/apache2/conf.d/openstack-dashboard.conf
+  notify:
+  - restart apache2 service
+
+- name: update horizon config
+  template:
+    src: opensuse/local_settings.py.j2
+    dest: /srv/www/openstack-dashboard/openstack_dashboard/local/local_settings.py
+  notify:
+  - restart apache2 service
+
+- name: create horizon log folder
+  file:
+    path: /var/log/horizon
+    state: directory
+
+- name: list manila default panels
+  find:
+    paths: /srv/www/openstack-dashboard/openstack_dashboard/enabled/
+    patterns: "*manila*"
+    file_type: any
+  register: panels
+  changed_when: false
+
+- name: remove manila default panels
+  file:
+    path: "{{ item.path }}"
+    state: absent
+  with_items:
+  - "{{ panels.files }}"
+  changed_when: false
+
+- name: add manila admin panel
+  copy:
+    src: /usr/lib/python2.7/site-packages/manila_ui/enabled/_90_manila_admin_shares.py
+    dest: /srv/www/openstack-dashboard/openstack_dashboard/enabled/_2075_manila_admin_shares.py
+    remote_src: true
+  changed_when: false
+
+- name: add manila project panel
+  copy:
+    src: /usr/lib/python2.7/site-packages/manila_ui/enabled/_90_manila_project_shares.py
+    dest: /srv/www/openstack-dashboard/openstack_dashboard/enabled/_1045_manila_project_shares.py
+    remote_src: true
+  changed_when: false
+
+- name: enable apache2 service
+  service:
+    name: apache2
+    enabled: yes
+
+- name: run queued handlers
+  meta:
+    flush_handlers

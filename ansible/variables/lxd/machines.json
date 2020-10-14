@@ -1,0 +1,64 @@
+{
+  "environment_machines": [
+    {
+      "name": "stack-stm-01",
+      "provision": true,
+      "nics": [{"network": "management","ipaddress": "172.18.1.11"},{"network": "storage","ipaddress": "172.18.5.11"}],
+      "groups": ["storage-manager"]
+    },
+    {
+      "name": "stack-stb-01",
+      "provision": true,
+      "nics": [{"network": "management","ipaddress": "172.18.1.12"},{"network": "storage","ipaddress": "172.18.5.12"},{"network": "replication","ipaddress": "172.18.6.12"}],
+      "groups": ["storage-backend"],
+      "parameters": {"ceph_osd_storage_path": "/data"}
+    },
+    {
+      "name": "stack-lba-01",
+      "provision": true,
+      "nics": [{"network": "management","ipaddress": "172.18.1.13"},{"network": "access","ipaddress": "172.18.2.13"}],
+      "groups": ["load-balancer"]
+    },
+    {
+      "name": "stack-dbm-01",
+      "provision": true,
+      "nics": [{"network": "management","ipaddress": "172.18.1.14"}],
+      "groups": ["database-messaging"]
+    },
+    {
+      "name": "stack-ccn-01",
+      "provision": true,
+      "nics": [{"network": "management","ipaddress": "172.18.1.15"},{"network": "storage","ipaddress": "172.18.5.15"}],
+      "groups": ["cloud-controller"],
+      "parameters": {"glance_store_type": "ceph"}
+    },
+    {
+      "name": "stack-ngw-01",
+      "provision": true,
+      "nics": [{"network": "management","ipaddress": "172.18.1.16"},{"network": "external"},{"network": "data","ipaddress": "172.18.4.16"}],
+      "groups": ["networking-gateway"],
+      "parameters": {"neutron_networking_type": "linuxbridge"}
+    },
+    {
+      "name": "stack-cmp-01",
+      "provision": true,
+      "nics": [{"network": "management","ipaddress": "172.18.1.17"},{"network": "data","ipaddress": "172.18.4.17"},{"network": "storage","ipaddress": "172.18.5.17"}],
+      "groups": ["compute-provider"],
+      "parameters": {"nova_compute_type": "libvirt","nova_compute_libvirt_type": "kvm","neutron_networking_type": "linuxbridge"}
+    },
+    {
+      "name": "stack-vlp-01",
+      "provision": true,
+      "nics": [{"network": "management","ipaddress": "172.18.1.18"},{"network": "storage","ipaddress": "172.18.5.18"}],
+      "groups": ["volume-provider"],
+      "parameters": {"cinder_volume_backends": "ceph","cinder_backup_type": "ceph"}
+    },
+    {
+      "name": "stack-shp-01",
+      "provision": true,
+      "nics": [{"network": "management","ipaddress": "172.18.1.19"},{"network": "data","ipaddress": "172.18.4.19"}],
+      "groups": ["share-provider"],
+      "parameters": {"manila_share_backends": "ceph","neutron_networking_type": "linuxbridge"}
+    }
+  ]
+}

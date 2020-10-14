@@ -1,0 +1,39 @@
+---
+
+- name: sync trove database
+  command: /usr/bin/trove-manage db_sync
+  become: true
+  become_method: su
+  become_user: trove
+  become_flags: '-s /bin/bash'
+  run_once: true
+
+- name: restart trove-api service
+  service:
+    name: trove-api
+    state: restarted
+
+- name: restart trove-conductor service
+  service:
+    name: trove-conductor
+    state: restarted
+
+- name: restart trove-taskmanager service
+  service:
+    name: trove-taskmanager
+    state: restarted
+
+- name: restart openstack-trove-api service
+  service:
+    name: openstack-trove-api
+    state: restarted
+
+- name: restart openstack-trove-conductor service
+  service:
+    name: openstack-trove-conductor
+    state: restarted
+
+- name: restart openstack-trove-taskmanager service
+  service:
+    name: openstack-trove-taskmanager
+    state: restarted

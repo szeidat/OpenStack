@@ -1,0 +1,62 @@
+# {{ ansible_managed }}
+
+# loopback interface
+iface lo inet loopback
+auto lo
+
+# management interface
+auto eth-management
+iface eth-management inet static
+address {{ management_ipaddress }}
+netmask {{ management_netmask }}
+gateway {{ management_gateway }}
+dns-domain {{ management_domain }}
+dns-nameservers {{ master_management_ipaddress }}
+{% if access_macaddress is defined %}
+
+# access interface
+auto eth-access
+iface eth-access inet static
+address {{ access_ipaddress }}
+netmask {{ access_netmask }}
+up ip route add default via {{ access_gateway }} table 10
+up ip rule add from {{ access_subnet }}/{{ access_netmask }} table 10
+{% endif %}
+{% if external_macaddress is defined %}
+
+# external interface
+auto eth-external
+iface eth-external inet manual
+{% endif %}
+{% if data_macaddress is defined %}
+
+# data interface
+auto eth-data
+iface eth-data inet static
+address {{ data_ipaddress }}
+netmask {{ data_netmask }}
+{% endif %}
+{% if storage_macaddress is defined %}
+
+# storage interface
+auto eth-storage
+iface eth-storage inet static
+address {{ storage_ipaddress }}
+netmask {{ storage_netmask }}
+up ip route add default via {{ storage_gateway }} table 20
+up ip rule add from {{ storage_subnet }}/{{ storage_netmask }} table 20
+{% endif %}
+{% if replication_macaddress is defined %}
+
+# replication interface
+auto eth-replication
+iface eth-replication inet static
+address {{ replication_ipaddress }}
+netmask {{ replication_netmask }}
+{% endif %}
+{% if security_macaddress is defined %}
+
+# security interface
+auto eth-security
+iface eth-security inet manual
+{% endif %}

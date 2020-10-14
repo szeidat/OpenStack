@@ -1,0 +1,93 @@
+#!/bin/bash
+
+# List resource
+function resource_list
+{
+  output=$(hammer compute-resource image list --compute-resource "$resource" | awk '/[0-9]/' 2>&1)
+  if [ $? -ne 0 ]; then
+    jq -n -c -M --arg msg "error getting resource list: $output" '{failed: true, msg: $msg}'
+    exit 1
+  fi
+}
+
+# Create resource
+function resource_create
+{
+  output=$(hammer compute-resource image create --name "$name" --architecture "$architecture" --compute-resource "$resource" --operatingsystem "$operating_system" --username "$username" --password "$password" --uuid "$vm_template" --user-data "$user_data" 2>&1)
+  if [ $? -ne 0 ]; then
+    jq -n -c -M --arg msg "error creating resource: $output" '{failed: true, msg: $msg}'
+    exit 1
+  fi
+}
+
+# Delete resource
+function resource_delete
+{
+  output=$(hammer compute-resource image delete --compute-resource "$resource" --id "$id" 2>&1)
+  if [ $? -ne 0 ]; then
+    jq -n -c -M --arg msg "error deleting resource: $output" '{failed: true, msg: $msg}'
+    exit 1
+  fi
+}
+
+# Read variables
+state=present
+architecture=x86_64
+username=dummy
+password=dummy
+user_data=true
+source $1
+
+# Validate variables
+if [ -z "$name" ]; then
+  jq -n -c -M '{failed: true, msg: "missing required arguments: name"}'
+  exit 1
+fi
+
+if [ -z "$resource" ]; then
+  jq -n -c -M' {failed: true, msg: "missing required arguments: resource"}'
+  exit 1
+fi
+
+if [ -z "$operating_system" ]; then
+  jq -n -c -M' {failed: true, msg: "missing required arguments: operating_system"}'
+  exit 1
+fi
+
+if [ -z "$vm_template" ]; then
+  jq -n -c -M' {failed: true, msg: "missing required arguments: vm_template"}'
+  exit 1
+fi
+
+# Set requested state
+case $state in
+  present )
+  resource_list
+  if [ -z "$(echo "$output" | grep -F "$name")" ]; then
+    resource_create
+    jq -n -c -M --arg msg "$output" '{changed: true, msg: $msg}'
+    exit 0
+  else
+    jq -n -c -M --arg msg "$output" '{changed: false, msg: $msg}'
+    exit 0
+  fi
+  ;;
+
+  absent )
+  resource_list
+  if [ -z "$(echo "$output" | grep -F "$name")" ]; then
+    jq -n -c -M --arg msg "$output" '{changed: false, msg: $msg}'
+    exit 0
+  else
+    id=$(echo "$output" | awk '/'"$name"'/{print $1}')
+    resource_delete
+    jq -n -c -M --arg msg "$output" '{changed: true, msg: $msg}'
+    exit 0
+  fi
+  ;;
+
+  * )
+  jq -n -c -M --arg msg "invalid state: $state" '{failed: true, msg: $msg}'
+  exit 1
+  ;;
+esac

@@ -1,0 +1,39 @@
+---
+
+- name: install software packages
+  apt:
+    name: "{{ item }}"
+    state: latest
+  with_items:
+  - glance
+  notify:
+  - sync glance database
+  - import metadata definetions
+
+- name: update glance-api config
+  template:
+    src: glance-api.conf.j2
+    dest: /etc/glance/glance-api.conf
+  notify:
+  - restart glance-api service
+
+- name: update glance-registry config
+  template:
+    src: glance-registry.conf.j2
+    dest: /etc/glance/glance-registry.conf
+  notify:
+  - restart glance-registry service
+
+- name: enable glance-api service
+  service:
+    name: glance-api
+    enabled: yes
+
+- name: enable glance-registry service
+  service:
+    name: glance-registry
+    enabled: yes
+
+- name: run queued handlers
+  meta:
+    flush_handlers

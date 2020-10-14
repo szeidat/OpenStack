@@ -1,0 +1,3 @@
+---
+
+- include: "{{ environment_distro }}/{{ nova_compute_type }}-{{ neutron_networking_type }}.yml"

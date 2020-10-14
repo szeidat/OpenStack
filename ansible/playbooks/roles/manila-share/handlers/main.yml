@@ -1,0 +1,34 @@
+---
+
+- name: systemd daemon reload
+  shell: systemctl daemon-reload
+
+- name: restart manila-share service
+  service:
+    name: manila-share
+    state: restarted
+
+- name: restart openstack-manila-share service
+  service:
+    name: openstack-manila-share
+    state: restarted
+
+- name: restart neutron-linuxbridge-agent service
+  service:
+    name: neutron-linuxbridge-agent
+    state: restarted
+
+- name: restart neutron-openvswitch-agent service
+  service:
+    name: neutron-openvswitch-agent
+    state: restarted
+
+- name: restart openstack-neutron-linuxbridge-agent service
+  service:
+    name: openstack-neutron-linuxbridge-agent
+    state: restarted
+
+- name: restart openstack-neutron-openvswitch-agent service
+  service:
+    name: openstack-neutron-openvswitch-agent
+    state: restarted

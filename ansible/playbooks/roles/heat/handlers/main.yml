@@ -1,0 +1,39 @@
+---
+
+- name: sync heat database
+  command: /usr/bin/heat-manage db_sync
+  become: true
+  become_method: su
+  become_user: heat
+  become_flags: '-s /bin/bash'
+  run_once: true
+
+- name: restart heat-api service
+  service:
+    name: heat-api
+    state: restarted
+
+- name: restart heat-api-cfn service
+  service:
+    name: heat-api-cfn
+    state: restarted
+
+- name: restart heat-engine service
+  service:
+    name: heat-engine
+    state: restarted
+
+- name: restart openstack-heat-api service
+  service:
+    name: openstack-heat-api
+    state: restarted
+
+- name: restart openstack-heat-api-cfn service
+  service:
+    name: openstack-heat-api-cfn
+    state: restarted
+
+- name: restart openstack-heat-engine service
+  service:
+    name: openstack-heat-engine
+    state: restarted

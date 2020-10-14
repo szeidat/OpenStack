@@ -1,0 +1,148 @@
+---
+
+- name: update packages
+  apt:
+    upgrade: dist
+    update_cache: yes
+
+- name: update hosts file
+  template:
+    src: hosts.j2
+    dest: /etc/hosts
+
+- name: update hostname file
+  template:
+    src: hostname.j2
+    dest: /etc/hostname
+
+- name: update udev rules
+  template:
+    src: udev.rules.j2
+    dest: /etc/udev/rules.d/70-persistent-net.rules
+  when: master_management_interface is defined
+
+- name: update network interfaces
+  template:
+    src: interfaces.j2
+    dest: /etc/network/interfaces
+
+- name: update trusted certificates
+  copy:
+    src: stackca.crt
+    dest: /usr/local/share/ca-certificates/stackca.crt
+  notify:
+  - update ca certificates
+
+- name: install software packages
+  apt:
+    name: "{{ item }}"
+    state: latest
+  with_items:
+  - grc
+  - syslog-ng
+  - bind9
+
+- name: update timesyncd config
+  template:
+    src: timesyncd.conf.j2
+    dest: /etc/systemd/timesyncd.conf
+  when: ntp_timesync
+  notify:
+  - restart systemd-timesyncd service
+
+- name: enable systemd-timesyncd service
+  service:
+    name: systemd-timesyncd
+    enabled: yes
+  when: ntp_timesync
+
+- name: update syslog-ng config
+  copy:
+    src: syslog-ng.conf
+    dest: /etc/syslog-ng/conf.d/stack.conf
+  notify:
+  - restart syslog-ng service
+
+- name: update syslog-ng log rotation config
+  copy:
+    src: logrotate.conf
+    dest: /etc/logrotate.d/stack
+
+- name: enable syslog-ng service
+  service:
+    name: syslog-ng
+    enabled: yes
+
+- name: create root grc folder
+  file:
+    path: /root/.grc
+    state: directory
+
+- name: update root grc config
+  copy:
+    src: grc.conf
+    dest: /root/.grc/conf.stack
+
+- name: update named config options
+  template:
+    src: named.conf.options.j2
+    dest: /etc/bind/named.conf.options
+  notify:
+  - restart bind9 service
+
+- name: update named local config
+  template:
+    src: named.conf.local.j2
+    dest: /etc/bind/named.conf.local
+  notify:
+  - restart bind9 service
+
+- name: update named foreward zone database
+  template:
+    src: named.db.foreward.j2
+    dest: '/var/lib/bind/db.management.{{ management_domain }}'
+  notify:
+  - restart bind9 service
+
+- name: update named reverse zone database
+  template:
+    src: named.db.reverse.j2
+    dest: '/var/lib/bind/db.management.{{ management_arpa }}'
+  notify:
+  - restart bind9 service
+
+- name: enable bind9 service
+  service:
+    name: bind9
+    enabled: yes
+
+- name: install openstack client software
+  shell: |
+    pip --proxy "http://{{ apt_cache_server }}:{{ apt_cache_port }}" install python-openstackclient==3.11.0
+    pip --proxy "http://{{ apt_cache_server }}:{{ apt_cache_port }}" install python-manilaclient==1.16.0
+    pip --proxy "http://{{ apt_cache_server }}:{{ apt_cache_port }}" install python-heatclient==1.10.0
+    pip --proxy "http://{{ apt_cache_server }}:{{ apt_cache_port }}" install python-magnumclient==2.3.1
+    pip --proxy "http://{{ apt_cache_server }}:{{ apt_cache_port }}" install python-troveclient==2.11.0
+
+- name: run queued handlers
+  meta:
+    flush_handlers
+
+- name: create root clouds folder
+  file:
+    path: /root/.config/openstack
+    state: directory
+    mode: '0700'
+
+- name: update root clouds file
+  template:
+    src: admin-clouds.yaml.j2
+    dest: /root/.config/openstack/clouds.yaml
+    mode: '0600'
+
+- name: update root openrc file
+  template:
+    src: admin-openrc.j2
+    dest: /root/.openrc
+    mode: '0600'
+

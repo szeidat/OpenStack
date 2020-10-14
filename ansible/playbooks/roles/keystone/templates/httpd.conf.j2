@@ -1,0 +1,42 @@
+# {{ ansible_managed }}
+
+Listen {{ management_ipaddress }}:5000
+Listen {{ management_ipaddress }}:35357
+
+<VirtualHost *:5000>
+    WSGIScriptAlias / /usr/bin/keystone-wsgi-public
+    WSGIDaemonProcess keystone-public processes=5 threads=1 user=keystone group=keystone display-name=%{GROUP}
+    WSGIProcessGroup keystone-public
+    WSGIApplicationGroup %{GLOBAL}
+    WSGIPassAuthorization On
+    LimitRequestBody 114688
+
+    LogLevel warn
+    ErrorLog /var/log/httpd/keystone.log
+    CustomLog /var/log/httpd/keystone-access.log combined
+
+    Alias /identity /usr/bin/keystone-wsgi-public
+
+    <Directory /usr/bin>
+        Require all granted
+    </Directory>
+</VirtualHost>
+
+<VirtualHost *:35357>
+    WSGIScriptAlias / /usr/bin/keystone-wsgi-admin
+    WSGIDaemonProcess keystone-admin processes=5 threads=1 user=keystone group=keystone display-name=%{GROUP}
+    WSGIProcessGroup keystone-admin
+    WSGIApplicationGroup %{GLOBAL}
+    WSGIPassAuthorization On
+    LimitRequestBody 114688
+
+    Alias /identity_admin /usr/bin/keystone-wsgi-admin
+
+    LogLevel warn
+    ErrorLog /var/log/httpd/keystone.log
+    CustomLog /var/log/httpd/keystone-access.log combined
+
+    <Directory /usr/bin>
+        Require all granted
+    </Directory>
+</VirtualHost>

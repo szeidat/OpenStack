@@ -1,0 +1,42 @@
+---
+
+- name: setup master services
+  hosts: localhost
+  connection: local
+  tasks:
+  - include_role:
+      name: master
+  tags: services
+
+- name: setup lxd backend
+  hosts: localhost
+  connection: local
+  tasks:
+  - include_role:
+      name: lxd-setup
+    when: environment_backend == 'lxd'
+  tags: backend
+
+- name: setup vmware backend
+  hosts: localhost
+  connection: local
+  tasks:
+  - include_role:
+      name: vmware-setup
+    when: environment_backend == 'esx'
+  tags: backend
+
+- name: setup foreman manager
+  hosts: localhost
+  connection: local
+  tasks:
+  - include_role:
+      name: foreman
+    when: environment_manager == 'foreman'
+  - include_role:
+      name: foreman-proxy
+    when: environment_manager == 'foreman'
+  - include_role:
+      name: foreman-setup
+    when: environment_manager == 'foreman'
+  tags: manager
